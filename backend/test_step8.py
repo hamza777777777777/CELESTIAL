@@ -9,7 +9,23 @@ from backend.models.task import Task
 from backend.services.anomaly_service import detect_systemic_issues
 # test_db fixture is provided by conftest.py (isolated in-memory SQLite)
 
+from backend.auth import get_token_verifier
+from fastapi import HTTPException, status
+
 client = TestClient(app)
+
+def mock_firebase_verifier(token: str) -> str:
+    if not token or not token.startswith("test-"):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    return "test-manager-uid"
+
+@pytest.fixture(scope="module", autouse=True)
+def setup_auth_manager():
+    app.dependency_overrides[get_token_verifier] = lambda: mock_firebase_verifier
+    yield
+    app.dependency_overrides.pop(get_token_verifier, None)
+
+AUTH_HEADER = {"Authorization": "Bearer test-manager-uid"}
 
 # test_db fixture is inherited from conftest.py — do NOT redefine it here
 
@@ -36,7 +52,7 @@ def test_pattern_detected(mock_post, test_db):
         "choices": [{"message": {"content": '{"summary": "AC is failing on floor 1"}'}}]
     }
     
-    response = client.get("/api/intelligence/systemic-issues")
+    response = client.get("/api/intelligence/systemic-issues", headers=AUTH_HEADER)
     assert response.status_code == 200
     data = response.json()
     
@@ -56,7 +72,7 @@ def test_unrelated_complaints(test_db):
         "Room needs cleaning"
     ])
     
-    response = client.get("/api/intelligence/systemic-issues")
+    response = client.get("/api/intelligence/systemic-issues", headers=AUTH_HEADER)
     assert response.status_code == 200
     data = response.json()
     assert len(data["issues"]) == 0
@@ -68,7 +84,7 @@ def test_threshold(test_db):
         "HVAC is broken"
     ])
     
-    response = client.get("/api/intelligence/systemic-issues")
+    response = client.get("/api/intelligence/systemic-issues", headers=AUTH_HEADER)
     assert response.status_code == 200
     data = response.json()
     assert len(data["issues"]) == 0
@@ -86,7 +102,7 @@ def test_ai_unavailable(test_db):
         "It's too hot in here, AC failed"
     ])
     
-    response = client.get("/api/intelligence/systemic-issues")
+    response = client.get("/api/intelligence/systemic-issues", headers=AUTH_HEADER)
     assert response.status_code == 200
     data = response.json()
     assert len(data["issues"]) == 1
@@ -109,7 +125,7 @@ def test_malformed_ai_response(mock_post, test_db):
         "choices": [{"message": {"content": 'invalid json'}}]
     }
     
-    response = client.get("/api/intelligence/systemic-issues")
+    response = client.get("/api/intelligence/systemic-issues", headers=AUTH_HEADER)
     assert response.status_code == 200
     data = response.json()
     assert len(data["issues"]) == 1
@@ -118,7 +134,7 @@ def test_malformed_ai_response(mock_post, test_db):
 
 # Test 6 — Empty dataset
 def test_empty_dataset(test_db):
-    response = client.get("/api/intelligence/systemic-issues")
+    response = client.get("/api/intelligence/systemic-issues", headers=AUTH_HEADER)
     assert response.status_code == 200
     data = response.json()
     assert "issues" in data

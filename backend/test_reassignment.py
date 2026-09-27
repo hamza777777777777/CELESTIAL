@@ -15,6 +15,21 @@ from backend.main import app
 from backend.database import Base, get_db
 from backend.models import Task, Staff, User, Assignment, AuditLog, TaskStatusHistory
 from backend.models.skill import Skill, staff_skills
+from backend.auth import get_token_verifier
+from fastapi import HTTPException, status
+
+def mock_firebase_verifier(token: str) -> str:
+    if not token or not token.startswith("test-"):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    return "test-manager-uid"
+
+@pytest.fixture(scope="module", autouse=True)
+def setup_auth_module():
+    app.dependency_overrides[get_token_verifier] = lambda: mock_firebase_verifier
+    yield
+    app.dependency_overrides.pop(get_token_verifier, None)
+
+AUTH_HEADER = {"Authorization": "Bearer test-manager-uid"}
 
 # ---------------------------------------------------------------------------
 # Shared test DB fixture (per-test isolation)
@@ -31,6 +46,11 @@ def override_db():
     TestSession = sessionmaker(bind=engine)
     db = TestSession()
 
+    # Seed Manager user for auth
+    u_mgr = User(id=999, name="Test Manager", role="Manager", email="mgr@test.com", firebase_uid="test-manager-uid")
+    db.add(u_mgr)
+    db.commit()
+
     def get_test_db():
         try:
             yield db
@@ -39,7 +59,7 @@ def override_db():
 
     app.dependency_overrides[get_db] = get_test_db
     yield db
-    app.dependency_overrides.clear()
+    app.dependency_overrides.pop(get_db, None)
     db.close()
     Base.metadata.drop_all(bind=engine)
 
@@ -117,7 +137,7 @@ def test_candidates_excludes_current_assignee(client, override_db):
     make_assignment(db, task, current)
     db.commit()
 
-    resp = client.get(f"/api/tasks/{task.id}/reassignment-candidates")
+    resp = client.get(f"/api/tasks/{task.id}/reassignment-candidates", headers=AUTH_HEADER)
     assert resp.status_code == 200, resp.text
     data = resp.json()
     ids = [c["staff_id"] for c in data["candidates"]]
@@ -145,7 +165,7 @@ def test_candidates_ranked_by_score(client, override_db):
 
     db.commit()
 
-    resp = client.get(f"/api/tasks/{task.id}/reassignment-candidates")
+    resp = client.get(f"/api/tasks/{task.id}/reassignment-candidates", headers=AUTH_HEADER)
     assert resp.status_code == 200, resp.text
     data = resp.json()
     cands = data["candidates"]
@@ -172,7 +192,7 @@ def test_candidates_empty_when_none_eligible(client, override_db):
     make_assignment(db, task, only_staff)
     db.commit()
 
-    resp = client.get(f"/api/tasks/{task.id}/reassignment-candidates")
+    resp = client.get(f"/api/tasks/{task.id}/reassignment-candidates", headers=AUTH_HEADER)
     assert resp.status_code == 200, resp.text
     data = resp.json()
     assert data["candidates"] == []
@@ -197,6 +217,7 @@ def test_reassign_rejects_wrong_department(client, override_db):
     resp = client.post(
         f"/api/tasks/{task.id}/reassign",
         json={"new_staff_id": wrong_dept.id, "reason": "test"},
+        headers=AUTH_HEADER,
     )
     assert resp.status_code == 400, resp.text
     assert "department" in resp.json()["detail"].lower()
@@ -219,6 +240,7 @@ def test_reassign_succeeds_valid_staff(client, override_db):
     resp = client.post(
         f"/api/tasks/{task.id}/reassign",
         json={"new_staff_id": new_worker.id, "reason": "Better fit"},
+        headers=AUTH_HEADER,
     )
     assert resp.status_code == 200, resp.text
     data = resp.json()
@@ -248,6 +270,7 @@ def test_reassign_resets_sla_state(client, override_db):
     resp = client.post(
         f"/api/tasks/{task.id}/reassign",
         json={"new_staff_id": new_worker.id},
+        headers=AUTH_HEADER,
     )
     assert resp.status_code == 200, resp.text
 
@@ -291,6 +314,7 @@ def test_reassign_creates_exactly_one_audit(client, override_db):
     resp = client.post(
         f"/api/tasks/{task.id}/reassign",
         json={"new_staff_id": new_worker.id, "reason": "test reason"},
+        headers=AUTH_HEADER,
     )
     assert resp.status_code == 200, resp.text
 

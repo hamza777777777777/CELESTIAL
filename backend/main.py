@@ -1,10 +1,46 @@
+import sys
+import os
+
+# Ensure the root workspace directory is in sys.path so 'backend' package imports succeed
+_root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _root_dir not in sys.path:
+    sys.path.insert(0, _root_dir)
+
+# Helper to load .env when python-dotenv is not installed
+def _load_env():
+    for env_path in [os.path.join(os.path.dirname(__file__), ".env"), os.path.join(_root_dir, ".env")]:
+        if os.path.exists(env_path):
+            try:
+                with open(env_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                if "FIREBASE_SERVICE_ACCOUNT_JSON=" in content:
+                    if "FIREBASE_SERVICE_ACCOUNT_JSON='" in content:
+                        s = content.index("FIREBASE_SERVICE_ACCOUNT_JSON='") + len("FIREBASE_SERVICE_ACCOUNT_JSON='")
+                        e = content.index("'", s)
+                        os.environ["FIREBASE_SERVICE_ACCOUNT_JSON"] = content[s:e]
+                    elif 'FIREBASE_SERVICE_ACCOUNT_JSON="' in content:
+                        s = content.index('FIREBASE_SERVICE_ACCOUNT_JSON="') + len('FIREBASE_SERVICE_ACCOUNT_JSON="')
+                        e = content.index('"', s)
+                        os.environ["FIREBASE_SERVICE_ACCOUNT_JSON"] = content[s:e]
+                for line in content.splitlines():
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line and not line.startswith("FIREBASE_SERVICE_ACCOUNT_JSON"):
+                        k, v = line.split("=", 1)
+                        k, v = k.strip(), v.strip().strip("'").strip('"')
+                        if k not in os.environ:
+                            os.environ[k] = v
+            except Exception:
+                pass
+_load_env()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-import os
 from backend.database import engine, Base
 from backend.routes import health, complaints, tasks
-from backend.routes import staff, stats, rooms, intelligence, pricing, recommendations, audit, reports, ml
+from backend.routes import (
+    staff, stats, rooms, intelligence, pricing, recommendations, audit, reports, ml, auth_routes
+)
 
 # Create all tables on startup (including new rooms table)
 Base.metadata.create_all(bind=engine)
@@ -45,6 +81,7 @@ app.include_router(recommendations.router)
 app.include_router(audit.router)
 app.include_router(reports.router)
 app.include_router(ml.router)
+app.include_router(auth_routes.router)
 
 from backend.routes import guest_portal, bookings
 app.include_router(guest_portal.router)

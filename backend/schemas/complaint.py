@@ -15,9 +15,9 @@ class ComplaintResponse(BaseModel):
     """Backward-compatible complaint response (used by GET endpoints)."""
     id: int
     guest_id: int
-    room_number: int
+    room_number: Optional[int] = None
     text: str
-    language: str
+    language: Optional[str] = "en"
     request_category: str = "complaint"
     photo_path: Optional[str] = None
     status: str

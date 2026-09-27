@@ -27,6 +27,12 @@ lerna-debug.log*
 !.env.example
 !**/.env.example
 
+# Firebase Admin credentials
+firebase-service-account.json
+*-firebase-adminsdk-*.json
+*.service-account.json
+
+
 # Python / Backend
 __pycache__/
 **/__pycache__/
@@ -55,5 +61,8 @@ Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
-*.sln
 *.sw?
+
+# Scratch & runtime uploads
+scratch/
+uploads/

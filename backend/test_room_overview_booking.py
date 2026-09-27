@@ -1,7 +1,23 @@
 import pytest
 from datetime import date
+from backend.main import app
 from backend.models.room import Room
 from backend.models.booking import Booking
+from backend.auth import get_token_verifier
+from fastapi import HTTPException, status
+
+def mock_firebase_verifier(token: str) -> str:
+    if not token or not token.startswith("test-"):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    return "test-th-uid"
+
+@pytest.fixture(scope="module", autouse=True)
+def setup_auth_module():
+    app.dependency_overrides[get_token_verifier] = lambda: mock_firebase_verifier
+    yield
+    app.dependency_overrides.pop(get_token_verifier, None)
+
+AUTH_HEADER = {"Authorization": "Bearer test-th-uid"}
 
 def test_no_booking_available(client_with_db, test_db):
     r1 = Room(room_number=101, room_type="Deluxe", status="cleaning", base_price_per_night=100)
@@ -9,7 +25,7 @@ def test_no_booking_available(client_with_db, test_db):
     test_db.add_all([r1, r2])
     test_db.commit()
 
-    response = client_with_db.get("/api/rooms?view_date=2026-10-05")
+    response = client_with_db.get("/api/rooms?view_date=2026-10-05", headers=AUTH_HEADER)
     assert response.status_code == 200
     data = response.json()
     assert len(data) >= 2
@@ -27,7 +43,7 @@ def test_booking_active_on_selected_date(client_with_db, test_db):
     test_db.commit()
     
     # 2026-10-05 is check-in (Booked)
-    res = client_with_db.get("/api/rooms?view_date=2026-10-05")
+    res = client_with_db.get("/api/rooms?view_date=2026-10-05", headers=AUTH_HEADER)
     data = res.json()
     r101 = next(r for r in data if r["room_number"] == 101)
     assert r101["booking_status"] == "booked"
@@ -44,12 +60,12 @@ def test_date_before_and_after_booking(client_with_db, test_db):
     test_db.commit()
     
     # Before check-in (2026-10-04) -> Available
-    res1 = client_with_db.get("/api/rooms?view_date=2026-10-04")
+    res1 = client_with_db.get("/api/rooms?view_date=2026-10-04", headers=AUTH_HEADER)
     r101_before = next(r for r in res1.json() if r["room_number"] == 101)
     assert r101_before["booking_status"] == "available"
     
     # Check-out date (2026-10-08) -> Available (since check_out > view_date is false)
-    res2 = client_with_db.get("/api/rooms?view_date=2026-10-08")
+    res2 = client_with_db.get("/api/rooms?view_date=2026-10-08", headers=AUTH_HEADER)
     r101_after = next(r for r in res2.json() if r["room_number"] == 101)
     assert r101_after["booking_status"] == "available"
     
@@ -62,7 +78,7 @@ def test_cancelled_booking(client_with_db, test_db):
     test_db.add(b)
     test_db.commit()
     
-    res = client_with_db.get("/api/rooms?view_date=2026-10-06")
+    res = client_with_db.get("/api/rooms?view_date=2026-10-06", headers=AUTH_HEADER)
     data = res.json()
     r101 = next(r for r in data if r["room_number"] == 101)
     assert r101["booking_status"] == "available"
@@ -83,7 +99,7 @@ def test_cleaning_timer(client_with_db, test_db):
     test_db.add(r1)
     test_db.commit()
 
-    res = client_with_db.get("/api/rooms?view_date=2026-10-06")
+    res = client_with_db.get("/api/rooms?view_date=2026-10-06", headers=AUTH_HEADER)
     data = res.json()
     r101 = next(r for r in data if r["room_number"] == 101)
     
@@ -106,7 +122,7 @@ def test_cleaning_timer_expired(client_with_db, test_db):
     test_db.add(r1)
     test_db.commit()
 
-    res = client_with_db.get("/api/rooms?view_date=2026-10-06")
+    res = client_with_db.get("/api/rooms?view_date=2026-10-06", headers=AUTH_HEADER)
     data = res.json()
     r101 = next(r for r in data if r["room_number"] == 101)
     
@@ -144,7 +160,7 @@ def test_full_room_inventory(client_with_db, test_db):
     test_db.add_all(demo_rooms)
     test_db.commit()
     
-    res = client_with_db.get("/api/rooms")
+    res = client_with_db.get("/api/rooms", headers=AUTH_HEADER)
     data = res.json()
     
     assert len(data) >= 16
@@ -164,7 +180,7 @@ def test_full_room_inventory(client_with_db, test_db):
     test_db.add(b)
     test_db.commit()
 
-    res2 = client_with_db.get("/api/rooms?view_date=2026-10-06")
+    res2 = client_with_db.get("/api/rooms?view_date=2026-10-06", headers=AUTH_HEADER)
     data2 = res2.json()
     
     r404 = next(r for r in data2 if r["room_number"] == 404)

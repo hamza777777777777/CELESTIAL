@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-
+from backend.auth import get_current_user
 from backend.database import get_db
 from backend.schemas.recommendation import RoomMatchRequest, RoomMatchResponse
 from backend.services.recommendation_service import get_room_recommendations
 
-router = APIRouter(prefix="/api/recommendations", tags=["recommendations"])
+router = APIRouter(dependencies=[Depends(get_current_user)], prefix="/api/recommendations", tags=["recommendations"])
 
 
 @router.post("/room-match", response_model=RoomMatchResponse)

@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends
+from backend.auth import require_manager, require_team_head, require_staff, require_guest
+
 from sqlalchemy.orm import Session
 
 from backend.database import get_db
 from backend.models import Task, Complaint, Assignment
 
-router = APIRouter(prefix="/api/stats", tags=["stats"])
+router = APIRouter(dependencies=[Depends(require_staff)], prefix="/api/stats", tags=["stats"])
 
 HIGH_PRIORITY_VALUES = {"high", "critical", "High", "Critical"}
 ACTIVE_TASK_STATUSES = {"created", "assigned", "in_progress", "completed", "verified"}

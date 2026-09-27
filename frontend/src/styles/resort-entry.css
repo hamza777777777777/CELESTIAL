@@ -1,0 +1,410 @@
+/* ============================================================
+   SMART RESORT 360 — BRIGHT DAYTIME LUXURY RESORT STYLES
+   ============================================================ */
+
+/* ── Daytime Room Activity / Sun Shimmer Keyframes ────────── */
+@keyframes daytimeRoomAwaken {
+  0% {
+    opacity: 0.1;
+    background: rgba(255, 255, 255, 0.2);
+    box-shadow: none;
+  }
+  50% {
+    opacity: 0.65;
+    background: rgba(240, 249, 255, 0.7);
+    box-shadow: 0 2px 12px rgba(37, 99, 235, 0.1);
+  }
+  100% {
+    opacity: 0.85;
+    background: rgba(248, 250, 252, 0.85);
+    box-shadow: 0 4px 20px rgba(30, 58, 138, 0.12);
+  }
+}
+
+.room-daytime-active {
+  animation: daytimeRoomAwaken 3.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  will-change: opacity, background-color, box-shadow;
+}
+
+/* Pool water gentle caustics shimmer */
+@keyframes poolShimmer {
+  0%, 100% {
+    opacity: 0.35;
+    transform: scale(1) translateY(0);
+  }
+  50% {
+    opacity: 0.65;
+    transform: scale(1.02) translateY(-2px);
+  }
+}
+
+.pool-shimmer-effect {
+  animation: poolShimmer 7s ease-in-out infinite;
+}
+
+/* ── Daytime Card Descent Animation (Slow & Controlled) ──── */
+@keyframes daytimeCardDescend {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  30% {
+    transform: translateY(20px) scale(0.99);
+    opacity: 0.95;
+  }
+  60% {
+    transform: translateY(140px) scale(0.95);
+    opacity: 0.75;
+  }
+  100% {
+    transform: translateY(420px) scale(0.88);
+    opacity: 0;
+  }
+}
+
+.animate-card-descend-daytime {
+  animation: daytimeCardDescend 1.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* ── Daytime Double Wooden Doors Opening Keyframes ────────── */
+@keyframes daytimeDoorOpenLeft {
+  0% {
+    transform: perspective(1400px) rotateY(0deg);
+  }
+  100% {
+    transform: perspective(1400px) rotateY(-86deg);
+  }
+}
+
+@keyframes daytimeDoorOpenRight {
+  0% {
+    transform: perspective(1400px) rotateY(0deg);
+  }
+  100% {
+    transform: perspective(1400px) rotateY(86deg);
+  }
+}
+
+.daytime-door-left {
+  transform-origin: left center;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.daytime-door-right {
+  transform-origin: right center;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.daytime-doors-opening .daytime-door-left {
+  animation: daytimeDoorOpenLeft 1.35s cubic-bezier(0.25, 0.1, 0.1, 1) forwards;
+}
+
+.daytime-doors-opening .daytime-door-right {
+  animation: daytimeDoorOpenRight 1.35s cubic-bezier(0.25, 0.1, 0.1, 1) forwards;
+}
+
+/* ── Warm Natural Sunlight Bloom Behind Doors ─────────────── */
+@keyframes sunlightBloom {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  40% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+  80% {
+    opacity: 0.9;
+    transform: scale(1.15);
+  }
+  100% {
+    opacity: 0.45;
+    transform: scale(1.25);
+  }
+}
+
+.sunlight-bloom-effect {
+  animation: sunlightBloom 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+/* ── Subtle Loading Indicator Pulse ──────────────────────── */
+@keyframes subtleProgress {
+  0% { width: 0%; opacity: 0.5; }
+  50% { width: 70%; opacity: 1; }
+  100% { width: 100%; opacity: 0.8; }
+}
+
+.animate-subtle-progress {
+  animation: subtleProgress 0.85s ease-in-out forwards;
+}
+
+/* ── Staggered Entrance Animations for Landing ────────────── */
+@keyframes fadeInUpGentle {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Login Page Slide-In & Choreography Animations ─────────── */
+@keyframes slideInFromLeft {
+  0% {
+    opacity: 0;
+    transform: translate3d(-100px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes slideInFromRight {
+  0% {
+    opacity: 0;
+    transform: translate3d(100px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-login-left-slide {
+  animation: slideInFromLeft 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-login-right-slide {
+  animation: slideInFromRight 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* ── Luxury Scroll Reveal & Interaction Styles ───────────── */
+.resort-reveal-item {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1), transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.resort-reveal-item.is-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.resort-card-hover {
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s ease;
+}
+
+.resort-card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 36px -8px rgba(30, 58, 138, 0.12), 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+
+/* ── Architectural Water Glass Panel ───────────────────────── */
+.resort-water-glass-panel {
+  position: relative;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.46) 0%,
+    rgba(255, 255, 255, 0.28) 45%,
+    rgba(225, 242, 255, 0.30) 100%
+  );
+  backdrop-filter: blur(18px) saturate(135%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  border: 1px solid rgba(255, 255, 255, 0.48);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 0 24px rgba(45, 140, 255, 0.05),
+    0 20px 60px rgba(20, 60, 100, 0.16);
+  overflow: hidden;
+}
+
+/* Pseudo A: Diagonal Light Reflection across glass (water-like highlight) */
+.resort-water-glass-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    120deg,
+    transparent 25%,
+    rgba(255, 255, 255, 0.16) 42%,
+    rgba(255, 255, 255, 0.08) 50%,
+    transparent 65%
+  );
+  filter: blur(1px);
+  z-index: 1;
+}
+
+/* Pseudo B: Vertical Specular Streak near side */
+.resort-water-glass-panel::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 24px;
+  width: 2px;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.28) 20%,
+    rgba(255, 255, 255, 0.12) 80%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  filter: blur(1px);
+  z-index: 1;
+}
+
+/* ── Downward Slide Upward Glass/Light Trail ───────────────── */
+@keyframes upwardGlassTrail {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.25) translateY(10px);
+  }
+  20% {
+    opacity: 0.95;
+    transform: scaleY(1) translateY(0);
+  }
+  55% {
+    opacity: 0.75;
+    transform: scaleY(1.35) translateY(-25px);
+  }
+  85% {
+    opacity: 0.25;
+    transform: scaleY(1.55) translateY(-45px);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleY(1.7) translateY(-60px);
+  }
+}
+
+.animate-glass-trail {
+  animation: upwardGlassTrail 0.85s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  transform-origin: bottom center;
+  will-change: transform, opacity;
+}
+
+/* ── Reduced Motion Support ───────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .room-daytime-active,
+  .pool-shimmer-effect,
+  .animate-card-descend-daytime,
+  .daytime-doors-opening .daytime-door-left,
+  .daytime-doors-opening .daytime-door-right,
+  .sunlight-bloom-effect,
+  .animate-subtle-progress,
+  .animate-fade-in-up,
+  .resort-reveal-item {
+    animation: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+    transition: opacity 0.3s ease !important;
+  }
+}
+
+
+.resort-auth-theme {
+  --radius: 1rem;
+  --background: #ffffff;
+  --foreground: #0a0b0d;
+  --card: #ffffff;
+  --card-foreground: #0a0b0d;
+  --popover: #ffffff;
+  --popover-foreground: #0a0b0d;
+  --primary: #0052ff;
+  --primary-foreground: #ffffff;
+  --secondary: #eef0f3;
+  --secondary-foreground: #0a0b0d;
+  --muted: #f7f7f7;
+  --muted-foreground: #5b616e;
+  --accent: #eef0f3;
+  --accent-foreground: #0a0b0d;
+  --destructive: #cf202f;
+  --border: #dee1e6;
+  --input: #dee1e6;
+  --ring: #0052ff;
+  --chart-1: #0052ff;
+  --chart-2: #05b169;
+  --chart-3: #5b616e;
+  --chart-4: #f4b000;
+  --chart-5: #cf202f;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0a0b0d;
+  --sidebar-primary: #0052ff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eef0f3;
+  --sidebar-accent-foreground: #0a0b0d;
+  --sidebar-border: #dee1e6;
+  --sidebar-ring: #0052ff;
+
+  --color-ink: #0a0b0d;
+  --color-body: #5b616e;
+  --color-hairline: #dee1e6;
+  --color-hairline-soft: #eef0f3;
+  --color-surface-soft: #f7f7f7;
+  --color-surface-strong: #eef0f3;
+  --color-surface-dark: #0a0b0d;
+  --color-surface-dark-elevated: #16181c;
+  --color-semantic-up: #05b169;
+  --color-semantic-down: #cf202f;
+}
+
+.resort-auth-theme.dark {
+  --background: #0a0b0d;
+  --foreground: #ffffff;
+  --card: #16181c;
+  --card-foreground: #ffffff;
+  --popover: #16181c;
+  --popover-foreground: #ffffff;
+  --primary: #0052ff;
+  --primary-foreground: #ffffff;
+  --secondary: #1f2228;
+  --secondary-foreground: #ffffff;
+  --muted: #16181c;
+  --muted-foreground: #a8acb3;
+  --accent: #1f2228;
+  --accent-foreground: #ffffff;
+  --destructive: #cf202f;
+  --border: #262930;
+  --input: #262930;
+  --ring: #0052ff;
+  --chart-1: #0052ff;
+  --chart-2: #05b169;
+  --chart-3: #a8acb3;
+  --chart-4: #f4b000;
+  --chart-5: #cf202f;
+
+  --sidebar: #0a0b0d;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #0052ff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #16181c;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1f2228;
+  --sidebar-ring: #0052ff;
+
+  --color-ink: #ffffff;
+  --color-body: #a8acb3;
+  --color-hairline: #262930;
+  --color-hairline-soft: #1f2228;
+  --color-surface-soft: #16181c;
+  --color-surface-strong: #1f2228;
+  --color-surface-dark: #0a0b0d;
+  --color-surface-dark-elevated: #16181c;
+  --color-semantic-up: #05b169;
+  --color-semantic-down: #cf202f;
+}
+

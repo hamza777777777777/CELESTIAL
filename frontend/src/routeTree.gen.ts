@@ -9,78 +9,46 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as LayoutRouteImport } from './routes/_layout'
-import { Route as LayoutIndexRouteImport } from './routes/_layout.index'
-import { Route as LayoutVerificationRouteImport } from './routes/_layout.verification'
-import { Route as LayoutTasksRouteImport } from './routes/_layout.tasks'
-import { Route as LayoutStaffRouteImport } from './routes/_layout.staff'
-import { Route as LayoutSettingsRouteImport } from './routes/_layout.settings'
-import { Route as LayoutResort360RouteImport } from './routes/_layout.resort-360'
-import { Route as LayoutRecommendationsRouteImport } from './routes/_layout.recommendations'
-import { Route as LayoutPricingRouteImport } from './routes/_layout.pricing'
-import { Route as LayoutInsightsRouteImport } from './routes/_layout.insights'
-import { Route as LayoutComplaintsRouteImport } from './routes/_layout.complaints'
-import { Route as LayoutCancellationRiskRouteImport } from './routes/_layout.cancellation-risk'
-import { Route as LayoutBookingOccupancyRouteImport } from './routes/_layout.booking-occupancy'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as SignupRouteImport } from './routes/signup'
 import { Route as LayoutAuditRouteImport } from './routes/_layout.audit'
+import { Route as LayoutBookingOccupancyRouteImport } from './routes/_layout.booking-occupancy'
+import { Route as LayoutCancellationRiskRouteImport } from './routes/_layout.cancellation-risk'
+import { Route as LayoutComplaintsRouteImport } from './routes/_layout.complaints'
+import { Route as LayoutDashboardRouteImport } from './routes/_layout.dashboard'
+import { Route as LayoutInsightsRouteImport } from './routes/_layout.insights'
+import { Route as LayoutPricingRouteImport } from './routes/_layout.pricing'
+import { Route as LayoutRecommendationsRouteImport } from './routes/_layout.recommendations'
+import { Route as LayoutResort360RouteImport } from './routes/_layout.resort-360'
+import { Route as LayoutSettingsRouteImport } from './routes/_layout.settings'
+import { Route as LayoutStaffRouteImport } from './routes/_layout.staff'
+import { Route as LayoutTasksRouteImport } from './routes/_layout.tasks'
+import { Route as LayoutVerificationRouteImport } from './routes/_layout.verification'
 
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LayoutRoute = LayoutRouteImport.update({
   id: '/_layout',
   getParentRoute: () => rootRouteImport,
 } as any)
-const LayoutIndexRoute = LayoutIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => LayoutRoute,
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const LayoutVerificationRoute = LayoutVerificationRouteImport.update({
-  id: '/verification',
-  path: '/verification',
-  getParentRoute: () => LayoutRoute,
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const LayoutTasksRoute = LayoutTasksRouteImport.update({
-  id: '/tasks',
-  path: '/tasks',
-  getParentRoute: () => LayoutRoute,
-} as any)
-const LayoutStaffRoute = LayoutStaffRouteImport.update({
-  id: '/staff',
-  path: '/staff',
-  getParentRoute: () => LayoutRoute,
-} as any)
-const LayoutSettingsRoute = LayoutSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => LayoutRoute,
-} as any)
-const LayoutResort360Route = LayoutResort360RouteImport.update({
-  id: '/resort-360',
-  path: '/resort-360',
-  getParentRoute: () => LayoutRoute,
-} as any)
-const LayoutRecommendationsRoute = LayoutRecommendationsRouteImport.update({
-  id: '/recommendations',
-  path: '/recommendations',
-  getParentRoute: () => LayoutRoute,
-} as any)
-const LayoutPricingRoute = LayoutPricingRouteImport.update({
-  id: '/pricing',
-  path: '/pricing',
-  getParentRoute: () => LayoutRoute,
-} as any)
-const LayoutInsightsRoute = LayoutInsightsRouteImport.update({
-  id: '/insights',
-  path: '/insights',
-  getParentRoute: () => LayoutRoute,
-} as any)
-const LayoutComplaintsRoute = LayoutComplaintsRouteImport.update({
-  id: '/complaints',
-  path: '/complaints',
-  getParentRoute: () => LayoutRoute,
-} as any)
-const LayoutCancellationRiskRoute = LayoutCancellationRiskRouteImport.update({
-  id: '/cancellation-risk',
-  path: '/cancellation-risk',
+const LayoutAuditRoute = LayoutAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
   getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutBookingOccupancyRoute = LayoutBookingOccupancyRouteImport.update({
@@ -88,18 +56,71 @@ const LayoutBookingOccupancyRoute = LayoutBookingOccupancyRouteImport.update({
   path: '/booking-occupancy',
   getParentRoute: () => LayoutRoute,
 } as any)
-const LayoutAuditRoute = LayoutAuditRouteImport.update({
-  id: '/audit',
-  path: '/audit',
+const LayoutCancellationRiskRoute = LayoutCancellationRiskRouteImport.update({
+  id: '/cancellation-risk',
+  path: '/cancellation-risk',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutComplaintsRoute = LayoutComplaintsRouteImport.update({
+  id: '/complaints',
+  path: '/complaints',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutDashboardRoute = LayoutDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutInsightsRoute = LayoutInsightsRouteImport.update({
+  id: '/insights',
+  path: '/insights',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutPricingRoute = LayoutPricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutRecommendationsRoute = LayoutRecommendationsRouteImport.update({
+  id: '/recommendations',
+  path: '/recommendations',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutResort360Route = LayoutResort360RouteImport.update({
+  id: '/resort-360',
+  path: '/resort-360',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutSettingsRoute = LayoutSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutStaffRoute = LayoutStaffRouteImport.update({
+  id: '/staff',
+  path: '/staff',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutTasksRoute = LayoutTasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutVerificationRoute = LayoutVerificationRouteImport.update({
+  id: '/verification',
+  path: '/verification',
   getParentRoute: () => LayoutRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof LayoutIndexRoute
+  '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/signup': typeof SignupRoute
   '/audit': typeof LayoutAuditRoute
   '/booking-occupancy': typeof LayoutBookingOccupancyRoute
   '/cancellation-risk': typeof LayoutCancellationRiskRoute
   '/complaints': typeof LayoutComplaintsRoute
+  '/dashboard': typeof LayoutDashboardRoute
   '/insights': typeof LayoutInsightsRoute
   '/pricing': typeof LayoutPricingRoute
   '/recommendations': typeof LayoutRecommendationsRoute
@@ -110,10 +131,14 @@ export interface FileRoutesByFullPath {
   '/verification': typeof LayoutVerificationRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/signup': typeof SignupRoute
   '/audit': typeof LayoutAuditRoute
   '/booking-occupancy': typeof LayoutBookingOccupancyRoute
   '/cancellation-risk': typeof LayoutCancellationRiskRoute
   '/complaints': typeof LayoutComplaintsRoute
+  '/dashboard': typeof LayoutDashboardRoute
   '/insights': typeof LayoutInsightsRoute
   '/pricing': typeof LayoutPricingRoute
   '/recommendations': typeof LayoutRecommendationsRoute
@@ -122,15 +147,18 @@ export interface FileRoutesByTo {
   '/staff': typeof LayoutStaffRoute
   '/tasks': typeof LayoutTasksRoute
   '/verification': typeof LayoutVerificationRoute
-  '/': typeof LayoutIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
   '/_layout': typeof LayoutRouteWithChildren
+  '/login': typeof LoginRoute
+  '/signup': typeof SignupRoute
   '/_layout/audit': typeof LayoutAuditRoute
   '/_layout/booking-occupancy': typeof LayoutBookingOccupancyRoute
   '/_layout/cancellation-risk': typeof LayoutCancellationRiskRoute
   '/_layout/complaints': typeof LayoutComplaintsRoute
+  '/_layout/dashboard': typeof LayoutDashboardRoute
   '/_layout/insights': typeof LayoutInsightsRoute
   '/_layout/pricing': typeof LayoutPricingRoute
   '/_layout/recommendations': typeof LayoutRecommendationsRoute
@@ -139,16 +167,18 @@ export interface FileRoutesById {
   '/_layout/staff': typeof LayoutStaffRoute
   '/_layout/tasks': typeof LayoutTasksRoute
   '/_layout/verification': typeof LayoutVerificationRoute
-  '/_layout/': typeof LayoutIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/login'
+    | '/signup'
     | '/audit'
     | '/booking-occupancy'
     | '/cancellation-risk'
     | '/complaints'
+    | '/dashboard'
     | '/insights'
     | '/pricing'
     | '/recommendations'
@@ -159,10 +189,14 @@ export interface FileRouteTypes {
     | '/verification'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/'
+    | '/login'
+    | '/signup'
     | '/audit'
     | '/booking-occupancy'
     | '/cancellation-risk'
     | '/complaints'
+    | '/dashboard'
     | '/insights'
     | '/pricing'
     | '/recommendations'
@@ -171,14 +205,17 @@ export interface FileRouteTypes {
     | '/staff'
     | '/tasks'
     | '/verification'
-    | '/'
   id:
     | '__root__'
+    | '/'
     | '/_layout'
+    | '/login'
+    | '/signup'
     | '/_layout/audit'
     | '/_layout/booking-occupancy'
     | '/_layout/cancellation-risk'
     | '/_layout/complaints'
+    | '/_layout/dashboard'
     | '/_layout/insights'
     | '/_layout/pricing'
     | '/_layout/recommendations'
@@ -187,15 +224,24 @@ export interface FileRouteTypes {
     | '/_layout/staff'
     | '/_layout/tasks'
     | '/_layout/verification'
-    | '/_layout/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
   LayoutRoute: typeof LayoutRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  SignupRoute: typeof SignupRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_layout': {
       id: '/_layout'
       path: ''
@@ -203,81 +249,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_layout/': {
-      id: '/_layout/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof LayoutIndexRouteImport
-      parentRoute: typeof LayoutRoute
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_layout/verification': {
-      id: '/_layout/verification'
-      path: '/verification'
-      fullPath: '/verification'
-      preLoaderRoute: typeof LayoutVerificationRouteImport
-      parentRoute: typeof LayoutRoute
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_layout/tasks': {
-      id: '/_layout/tasks'
-      path: '/tasks'
-      fullPath: '/tasks'
-      preLoaderRoute: typeof LayoutTasksRouteImport
-      parentRoute: typeof LayoutRoute
-    }
-    '/_layout/staff': {
-      id: '/_layout/staff'
-      path: '/staff'
-      fullPath: '/staff'
-      preLoaderRoute: typeof LayoutStaffRouteImport
-      parentRoute: typeof LayoutRoute
-    }
-    '/_layout/settings': {
-      id: '/_layout/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof LayoutSettingsRouteImport
-      parentRoute: typeof LayoutRoute
-    }
-    '/_layout/resort-360': {
-      id: '/_layout/resort-360'
-      path: '/resort-360'
-      fullPath: '/resort-360'
-      preLoaderRoute: typeof LayoutResort360RouteImport
-      parentRoute: typeof LayoutRoute
-    }
-    '/_layout/recommendations': {
-      id: '/_layout/recommendations'
-      path: '/recommendations'
-      fullPath: '/recommendations'
-      preLoaderRoute: typeof LayoutRecommendationsRouteImport
-      parentRoute: typeof LayoutRoute
-    }
-    '/_layout/pricing': {
-      id: '/_layout/pricing'
-      path: '/pricing'
-      fullPath: '/pricing'
-      preLoaderRoute: typeof LayoutPricingRouteImport
-      parentRoute: typeof LayoutRoute
-    }
-    '/_layout/insights': {
-      id: '/_layout/insights'
-      path: '/insights'
-      fullPath: '/insights'
-      preLoaderRoute: typeof LayoutInsightsRouteImport
-      parentRoute: typeof LayoutRoute
-    }
-    '/_layout/complaints': {
-      id: '/_layout/complaints'
-      path: '/complaints'
-      fullPath: '/complaints'
-      preLoaderRoute: typeof LayoutComplaintsRouteImport
-      parentRoute: typeof LayoutRoute
-    }
-    '/_layout/cancellation-risk': {
-      id: '/_layout/cancellation-risk'
-      path: '/cancellation-risk'
-      fullPath: '/cancellation-risk'
-      preLoaderRoute: typeof LayoutCancellationRiskRouteImport
+    '/_layout/audit': {
+      id: '/_layout/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof LayoutAuditRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/booking-occupancy': {
@@ -287,11 +277,81 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutBookingOccupancyRouteImport
       parentRoute: typeof LayoutRoute
     }
-    '/_layout/audit': {
-      id: '/_layout/audit'
-      path: '/audit'
-      fullPath: '/audit'
-      preLoaderRoute: typeof LayoutAuditRouteImport
+    '/_layout/cancellation-risk': {
+      id: '/_layout/cancellation-risk'
+      path: '/cancellation-risk'
+      fullPath: '/cancellation-risk'
+      preLoaderRoute: typeof LayoutCancellationRiskRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/complaints': {
+      id: '/_layout/complaints'
+      path: '/complaints'
+      fullPath: '/complaints'
+      preLoaderRoute: typeof LayoutComplaintsRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/dashboard': {
+      id: '/_layout/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof LayoutDashboardRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/insights': {
+      id: '/_layout/insights'
+      path: '/insights'
+      fullPath: '/insights'
+      preLoaderRoute: typeof LayoutInsightsRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/pricing': {
+      id: '/_layout/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof LayoutPricingRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/recommendations': {
+      id: '/_layout/recommendations'
+      path: '/recommendations'
+      fullPath: '/recommendations'
+      preLoaderRoute: typeof LayoutRecommendationsRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/resort-360': {
+      id: '/_layout/resort-360'
+      path: '/resort-360'
+      fullPath: '/resort-360'
+      preLoaderRoute: typeof LayoutResort360RouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/settings': {
+      id: '/_layout/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof LayoutSettingsRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/staff': {
+      id: '/_layout/staff'
+      path: '/staff'
+      fullPath: '/staff'
+      preLoaderRoute: typeof LayoutStaffRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/tasks': {
+      id: '/_layout/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof LayoutTasksRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/verification': {
+      id: '/_layout/verification'
+      path: '/verification'
+      fullPath: '/verification'
+      preLoaderRoute: typeof LayoutVerificationRouteImport
       parentRoute: typeof LayoutRoute
     }
   }
@@ -302,6 +362,7 @@ interface LayoutRouteChildren {
   LayoutBookingOccupancyRoute: typeof LayoutBookingOccupancyRoute
   LayoutCancellationRiskRoute: typeof LayoutCancellationRiskRoute
   LayoutComplaintsRoute: typeof LayoutComplaintsRoute
+  LayoutDashboardRoute: typeof LayoutDashboardRoute
   LayoutInsightsRoute: typeof LayoutInsightsRoute
   LayoutPricingRoute: typeof LayoutPricingRoute
   LayoutRecommendationsRoute: typeof LayoutRecommendationsRoute
@@ -310,7 +371,6 @@ interface LayoutRouteChildren {
   LayoutStaffRoute: typeof LayoutStaffRoute
   LayoutTasksRoute: typeof LayoutTasksRoute
   LayoutVerificationRoute: typeof LayoutVerificationRoute
-  LayoutIndexRoute: typeof LayoutIndexRoute
 }
 
 const LayoutRouteChildren: LayoutRouteChildren = {
@@ -318,6 +378,7 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutBookingOccupancyRoute: LayoutBookingOccupancyRoute,
   LayoutCancellationRiskRoute: LayoutCancellationRiskRoute,
   LayoutComplaintsRoute: LayoutComplaintsRoute,
+  LayoutDashboardRoute: LayoutDashboardRoute,
   LayoutInsightsRoute: LayoutInsightsRoute,
   LayoutPricingRoute: LayoutPricingRoute,
   LayoutRecommendationsRoute: LayoutRecommendationsRoute,
@@ -326,14 +387,16 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutStaffRoute: LayoutStaffRoute,
   LayoutTasksRoute: LayoutTasksRoute,
   LayoutVerificationRoute: LayoutVerificationRoute,
-  LayoutIndexRoute: LayoutIndexRoute,
 }
 
 const LayoutRouteWithChildren =
   LayoutRoute._addFileChildren(LayoutRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
   LayoutRoute: LayoutRouteWithChildren,
+  LoginRoute: LoginRoute,
+  SignupRoute: SignupRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

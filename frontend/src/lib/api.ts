@@ -1,4 +1,7 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+  (typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+    ? 'http://localhost:8000' 
+    : 'http://127.0.0.1:8000');
 
 export class APIError extends Error {
   constructor(public status: number, message: string) {
@@ -7,15 +10,31 @@ export class APIError extends Error {
   }
 }
 
+import { AuthService } from './auth';
+
 async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
   try {
     const url = `${API_BASE_URL}${endpoint}`;
+    
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    // Attach Firebase ID token dynamically
+    const idToken = await AuthService.getIdToken();
+    if (idToken) {
+      headers['Authorization'] = `Bearer ${idToken}`;
+    }
+    
+    // Merge provided headers
+    const finalHeaders = {
+      ...headers,
+      ...(options?.headers as Record<string, string> || {})
+    };
+    
     const response = await fetch(url, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
+      headers: finalHeaders,
     });
 
     if (!response.ok) {

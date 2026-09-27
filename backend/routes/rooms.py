@@ -8,6 +8,8 @@ NOTE: Room occupancy data is SEEDED FOR DEMONSTRATION PURPOSES only.
       Room statuses are seeded at startup and do not change dynamically.
 """
 from fastapi import APIRouter, Depends
+from backend.auth import require_manager, require_team_head, require_staff, require_guest
+
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
@@ -17,7 +19,7 @@ from backend.models.room import Room
 from backend.models.booking import Booking
 from backend.schemas.room import RoomResponse
 
-router = APIRouter(prefix="/api/rooms", tags=["rooms"])
+router = APIRouter(dependencies=[Depends(require_team_head)], prefix="/api/rooms", tags=["rooms"])
 
 
 @router.get("", response_model=List[RoomResponse])

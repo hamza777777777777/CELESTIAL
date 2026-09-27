@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from backend.auth import require_manager, require_team_head, require_staff, require_guest
+
 from sqlalchemy.orm import Session
 from backend.database import get_db
 from backend.schemas.pricing import PricingAnalysisResponse
 from backend.services.pricing_service import get_competitive_analysis
 
-router = APIRouter(
+router = APIRouter(dependencies=[Depends(require_manager)], 
     prefix="/api/pricing",
     tags=["pricing"]
 )

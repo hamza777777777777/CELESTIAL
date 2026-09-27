@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends
+from backend.auth import require_manager, require_team_head, require_staff, require_guest
+
 from sqlalchemy.orm import Session
 from backend.database import get_db
 from backend.models import AuditLog
@@ -6,7 +8,7 @@ from backend.schemas.ml import CancellationPredictionRequest, CancellationPredic
 from backend.services.ml_service import predict_cancellation_risk, predict_demand_forecast
 import datetime
 
-router = APIRouter(prefix="/api/ml", tags=["ml"])
+router = APIRouter(dependencies=[Depends(require_manager)], prefix="/api/ml", tags=["ml"])
 
 @router.post("/cancellation-risk", response_model=CancellationPredictionResponse)
 def analyze_cancellation_risk(request: CancellationPredictionRequest, db: Session = Depends(get_db)):

@@ -8,9 +8,24 @@ from fastapi.testclient import TestClient
 
 from backend.main import app
 from backend.models.room import Room
+from backend.auth import get_token_verifier
+from fastapi import HTTPException, status
 # test_db fixture is provided by conftest.py (isolated in-memory SQLite)
 
 client = TestClient(app)
+
+def mock_firebase_verifier(token: str) -> str:
+    if not token or not token.startswith("test-"):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    return "test-manager-uid"
+
+@pytest.fixture(scope="module", autouse=True)
+def setup_auth_module():
+    app.dependency_overrides[get_token_verifier] = lambda: mock_firebase_verifier
+    yield
+    app.dependency_overrides.pop(get_token_verifier, None)
+
+AUTH_HEADER = {"Authorization": "Bearer test-manager-uid"}
 
 # test_db fixture is inherited from conftest.py — do NOT redefine it here
 def seed_rooms(db, rooms_data):
@@ -28,7 +43,7 @@ def test_query_returns_available_rooms(test_db):
         (102, "Deluxe", "available", 3500),
         (201, "Suite",  "available", 8500),
     ])
-    res = client.post("/api/recommendations/room-match", json={"query": "I need a Deluxe room"})
+    res = client.post("/api/recommendations/room-match", json={"query": "I need a Deluxe room"}, headers=AUTH_HEADER)
     assert res.status_code == 200
     data = res.json()
     assert len(data["matches"]) >= 1
@@ -45,7 +60,7 @@ def test_occupied_room_never_returned(test_db):
         (103, "Deluxe", "maintenance", 3500),
         (104, "Deluxe", "available", 3500),
     ])
-    res = client.post("/api/recommendations/room-match", json={"query": "I want a Deluxe room"})
+    res = client.post("/api/recommendations/room-match", json={"query": "I want a Deluxe room"}, headers=AUTH_HEADER)
     assert res.status_code == 200
     data = res.json()
     # Only room 104 is available
@@ -60,7 +75,7 @@ def test_budget_constraint_respected(test_db):
         (101, "Standard", "available", 2500),
         (201, "Suite",    "available", 8500),
     ])
-    res = client.post("/api/recommendations/room-match", json={"query": "room under ₹4000"})
+    res = client.post("/api/recommendations/room-match", json={"query": "room under ₹4000"}, headers=AUTH_HEADER)
     assert res.status_code == 200
     data = res.json()
     # Suite at 8500 should NOT be the top result; Standard at 2500 should score higher
@@ -76,6 +91,7 @@ def test_unsupported_requirement_not_fabricated(test_db):
     res = client.post(
         "/api/recommendations/room-match",
         json={"query": "I need a room with a pool"},
+        headers=AUTH_HEADER,
     )
     assert res.status_code == 200
     data = res.json()
@@ -94,7 +110,7 @@ def test_no_available_rooms_clean_response(test_db):
         (101, "Deluxe", "occupied", 3500),
         (102, "Deluxe", "cleaning", 3500),
     ])
-    res = client.post("/api/recommendations/room-match", json={"query": "any room please"})
+    res = client.post("/api/recommendations/room-match", json={"query": "any room please"}, headers=AUTH_HEADER)
     assert res.status_code == 200
     data = res.json()
     assert data["matches"] == []
@@ -108,6 +124,7 @@ def test_no_openai_key_uses_fallback(test_db):
     res = client.post(
         "/api/recommendations/room-match",
         json={"query": "family room under 6000"},
+        headers=AUTH_HEADER,
     )
     assert res.status_code == 200
     data = res.json()
@@ -131,7 +148,7 @@ def test_malformed_ai_response_uses_fallback(mock_post, test_db):
     }
     mock_post.return_value.raise_for_status = lambda: None
 
-    res = client.post("/api/recommendations/room-match", json={"query": "Deluxe room"})
+    res = client.post("/api/recommendations/room-match", json={"query": "Deluxe room"}, headers=AUTH_HEADER)
     assert res.status_code == 200
     data = res.json()
     assert len(data["matches"]) >= 1
@@ -167,7 +184,7 @@ def test_ai_explanation_cannot_add_facts(mock_post, test_db):
 
     mock_post.side_effect = mock_side_effect
 
-    res = client.post("/api/recommendations/room-match", json={"query": "Deluxe room"})
+    res = client.post("/api/recommendations/room-match", json={"query": "Deluxe room"}, headers=AUTH_HEADER)
     assert res.status_code == 200
     data = res.json()
     # The AI explanation with "pool" should still appear (we validate room_number keys,
@@ -185,7 +202,7 @@ def test_at_most_three_recommendations(test_db):
         test_db.add(Room(room_number=100 + i, room_type="Standard", floor=1, status="available", base_rate=2500))
     test_db.commit()
 
-    res = client.post("/api/recommendations/room-match", json={"query": "Standard room"})
+    res = client.post("/api/recommendations/room-match", json={"query": "Standard room"}, headers=AUTH_HEADER)
     assert res.status_code == 200
     data = res.json()
     assert len(data["matches"]) <= 3
@@ -194,5 +211,5 @@ def test_at_most_three_recommendations(test_db):
 # ── Test 10: Empty query returns 400 ──────────────────────────────────────────
 @patch.dict(os.environ, clear=True)
 def test_empty_query_returns_400(test_db):
-    res = client.post("/api/recommendations/room-match", json={"query": ""})
+    res = client.post("/api/recommendations/room-match", json={"query": ""}, headers=AUTH_HEADER)
     assert res.status_code == 400

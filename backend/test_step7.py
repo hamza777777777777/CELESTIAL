@@ -14,7 +14,23 @@ import os
 from unittest.mock import patch
 # test_db fixture is provided by conftest.py (isolated in-memory SQLite)
 
+from backend.auth import get_token_verifier
+from fastapi import HTTPException, status
+
 client = TestClient(app)
+
+def mock_firebase_verifier(token: str) -> str:
+    if not token or not token.startswith("test-"):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    return "test-manager-uid"
+
+@pytest.fixture(scope="module", autouse=True)
+def setup_auth_manager():
+    app.dependency_overrides[get_token_verifier] = lambda: mock_firebase_verifier
+    yield
+    app.dependency_overrides.pop(get_token_verifier, None)
+
+AUTH_HEADER = {"Authorization": "Bearer test-manager-uid"}
 
 
 def test_intelligence_endpoint_no_key(test_db):
@@ -22,7 +38,7 @@ def test_intelligence_endpoint_no_key(test_db):
     if "OPENAI_API_KEY" in os.environ:
         del os.environ["OPENAI_API_KEY"]
 
-    response = client.get("/api/intelligence/next-action")
+    response = client.get("/api/intelligence/next-action", headers=AUTH_HEADER)
     assert response.status_code == 200
     data = response.json()
     assert "action" in data
@@ -50,7 +66,7 @@ def test_intelligence_endpoint_llm_success(mock_post, monkeypatch, test_db):
 
     mock_post.return_value = MockResponse()
 
-    response = client.get("/api/intelligence/next-action")
+    response = client.get("/api/intelligence/next-action", headers=AUTH_HEADER)
     assert response.status_code == 200
     data = response.json()
     assert data["source"] == "ai"
@@ -75,7 +91,7 @@ def test_intelligence_endpoint_llm_malformed(mock_post, monkeypatch, test_db):
 
     mock_post.return_value = MockResponse()
 
-    response = client.get("/api/intelligence/next-action")
+    response = client.get("/api/intelligence/next-action", headers=AUTH_HEADER)
     assert response.status_code == 200
     data = response.json()
     assert data["source"] == "rule_based"
@@ -93,7 +109,7 @@ def test_audit_log_created_and_deduplicated(test_db):
     assert initial_count == 0  # fresh isolated DB starts empty
 
     # First call should create a log
-    response1 = client.get("/api/intelligence/next-action")
+    response1 = client.get("/api/intelligence/next-action", headers=AUTH_HEADER)
     assert response1.status_code == 200
 
     first_call_count = test_db.query(AuditLog).filter(
@@ -102,7 +118,7 @@ def test_audit_log_created_and_deduplicated(test_db):
     assert first_call_count == initial_count + 1
 
     # Second call with identical action should NOT create a duplicate log
-    response2 = client.get("/api/intelligence/next-action")
+    response2 = client.get("/api/intelligence/next-action", headers=AUTH_HEADER)
     assert response2.status_code == 200
 
     second_call_count = test_db.query(AuditLog).filter(

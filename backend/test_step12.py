@@ -1,7 +1,24 @@
 import os
+import pytest
+from backend.main import app
 from backend.models.audit_log import AuditLog
+from backend.auth import get_token_verifier
+from fastapi import HTTPException, status
 
 # The client and db sessions are provided by conftest.py fixtures
+
+def mock_firebase_verifier(token: str) -> str:
+    if not token or not token.startswith("test-"):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    return "test-manager-uid"
+
+@pytest.fixture(scope="module", autouse=True)
+def setup_auth_module():
+    app.dependency_overrides[get_token_verifier] = lambda: mock_firebase_verifier
+    yield
+    app.dependency_overrides.pop(get_token_verifier, None)
+
+AUTH_HEADER = {"Authorization": "Bearer test-manager-uid"}
 
 def test_model_loads():
     # Test 1 - Model loads
@@ -43,7 +60,7 @@ def test_valid_inference(client_with_db, test_db):
         "customer_type": "Transient"
     }
     
-    response = client_with_db.post("/api/ml/cancellation-risk", json=payload)
+    response = client_with_db.post("/api/ml/cancellation-risk", json=payload, headers=AUTH_HEADER)
     assert response.status_code == 200
     data = response.json()
     
@@ -64,7 +81,7 @@ def test_valid_inference(client_with_db, test_db):
 
 def test_invalid_input(client_with_db):
     # Test 5
-    response = client_with_db.post("/api/ml/cancellation-risk", json={"lead_time": "INVALID_TYPE", "country": 123})
+    response = client_with_db.post("/api/ml/cancellation-risk", json={"lead_time": "INVALID_TYPE", "country": 123}, headers=AUTH_HEADER)
     assert response.status_code == 422
 
 def test_audit_event_created(test_db):

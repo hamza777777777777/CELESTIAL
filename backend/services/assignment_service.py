@@ -93,13 +93,20 @@ def _parse_time(t: str) -> datetime.time:
 
 
 def _is_on_shift(staff: Staff, now: datetime.time) -> bool:
-    """Return True if now is within [shift_start, shift_end] (inclusive)."""
+    """Return True if now or local time is within [shift_start, shift_end] (inclusive)."""
     try:
         start = _parse_time(staff.shift_start)
         end = _parse_time(staff.shift_end)
-        return start <= now <= end
+        local_time = datetime.datetime.now().time()
+        
+        # Standard daytime shift (e.g. 06:00 to 14:00)
+        if start <= end:
+            return (start <= now <= end) or (start <= local_time <= end)
+        # Overnight shift (e.g. 22:00 to 06:00)
+        else:
+            return (now >= start or now <= end) or (local_time >= start or local_time <= end)
     except Exception:
-        return False  # unparseable shift → exclude
+        return True  # If shift unparseable, don't completely lock out staff
 
 
 def _active_assignment_count(staff: Staff, db: Session) -> int:

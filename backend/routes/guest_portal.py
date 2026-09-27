@@ -8,6 +8,8 @@ from backend.database import get_db
 from backend.models.complaint import Complaint
 from backend.models.notification import Notification
 from backend.models.task import Task
+from backend.models.user import User
+from backend.auth import get_current_guest
 from backend.routes.complaints import create_complaint
 from backend.schemas.complaint import ComplaintCreateResponse
 
@@ -50,7 +52,9 @@ def map_task_status_to_guest_status(task_status: Optional[str], complaint_status
     return "Submitted"
 
 @router.get("/{guest_id}/requests", response_model=List[GuestRequestResponse])
-def get_guest_requests(guest_id: int, db: Session = Depends(get_db)):
+def get_guest_requests(guest_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_guest)):
+    if current_user.id != guest_id:
+        raise HTTPException(status_code=403, detail="Forbidden: You can only access your own requests")
     complaints = db.query(Complaint).filter(Complaint.guest_id == guest_id).order_by(Complaint.created_at.desc()).all()
     
     results = []
@@ -79,8 +83,11 @@ def create_guest_request(
     text: str = Form(...),
     request_category: str = Form(...),
     photo: UploadFile = File(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_guest)
 ):
+    if current_user.id != guest_id:
+        raise HTTPException(status_code=403, detail="Forbidden: You can only create requests for yourself")
     # Delegate to the existing pipeline
     return create_complaint(
         guest_id=guest_id,
@@ -93,12 +100,16 @@ def create_guest_request(
     )
 
 @router.get("/{guest_id}/notifications", response_model=List[NotificationResponse])
-def get_guest_notifications(guest_id: int, db: Session = Depends(get_db)):
+def get_guest_notifications(guest_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_guest)):
+    if current_user.id != guest_id:
+        raise HTTPException(status_code=403, detail="Forbidden: You can only access your own notifications")
     notifications = db.query(Notification).filter(Notification.guest_id == guest_id).order_by(Notification.created_at.desc()).all()
     return notifications
 
 @router.post("/{guest_id}/notifications/{notification_id}/read")
-def mark_notification_read(guest_id: int, notification_id: int, db: Session = Depends(get_db)):
+def mark_notification_read(guest_id: int, notification_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_guest)):
+    if current_user.id != guest_id:
+        raise HTTPException(status_code=403, detail="Forbidden: You can only modify your own notifications")
     notif = db.query(Notification).filter(Notification.id == notification_id, Notification.guest_id == guest_id).first()
     if not notif:
         raise HTTPException(status_code=404, detail="Notification not found")

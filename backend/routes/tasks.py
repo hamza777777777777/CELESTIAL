@@ -8,17 +8,28 @@ import datetime
 from backend.database import get_db
 from backend.models import Task, Assignment, Staff, User, TaskStatusHistory, AuditLog, CompletionProof, Notification
 from backend.schemas.task import TaskResponse, TaskStatusUpdate
+from backend.auth import get_current_user, require_staff, require_team_head
 
-router = APIRouter(prefix="/api/tasks", tags=["tasks"])
+def verify_task_access(task: Task, current_user: User):
+    if current_user.role == "Staff":
+        staff_prof_id = current_user.staff_profile.id if current_user.staff_profile else None
+        if task.status == "created":
+            return
+        if not task.assignments or task.assignments[-1].staff_id != staff_prof_id:
+            raise HTTPException(status_code=403, detail="Forbidden: You can only access your assigned tasks")
+
+router = APIRouter(dependencies=[Depends(require_staff)], prefix="/api/tasks", tags=["tasks"])
 
 @router.get("", response_model=List[TaskResponse])
-def get_tasks(db: Session = Depends(get_db)):
+def get_tasks(db: Session = Depends(get_db), current_user: User = Depends(require_staff)):
     tasks = db.query(Task).options(
         joinedload(Task.assignments).joinedload(Assignment.staff).joinedload(Staff.user),
         joinedload(Task.completion_proofs),
         joinedload(Task.status_history)
     ).all()
     
+    filtered_tasks = []
+    staff_prof_id = current_user.staff_profile.id if current_user.staff_profile else None
     for t in tasks:
         if t.status in ["assigned", "in_progress"]:
             result = process_task_attention(db, t)
@@ -29,19 +40,31 @@ def get_tasks(db: Session = Depends(get_db)):
                 t.minutes_inactive = result.get("minutes_inactive")
                 t.reason = result.get("reason")
                 
-    return tasks
+        if current_user.role == "Staff":
+            if staff_prof_id and t.assignments and t.assignments[-1].staff_id == staff_prof_id:
+                filtered_tasks.append(t)
+            elif t.status == "created":
+                filtered_tasks.append(t)
+            continue
+
+        filtered_tasks.append(t)
+    return filtered_tasks
 
 from backend.services.sla_service import process_task_attention
 
 @router.get("/attention")
-def get_tasks_attention(db: Session = Depends(get_db)):
+def get_tasks_attention(db: Session = Depends(get_db), current_user: User = Depends(require_staff)):
     tasks = db.query(Task).options(
         joinedload(Task.assignments).joinedload(Assignment.staff).joinedload(Staff.user),
         joinedload(Task.status_history)
     ).filter(Task.status.in_(["assigned", "in_progress"])).all()
     
     attention_tasks = []
+    staff_prof_id = current_user.staff_profile.id if current_user.staff_profile else None
     for t in tasks:
+        if current_user.role == "Staff":
+            if not t.assignments or t.assignments[-1].staff_id != staff_prof_id:
+                continue
         result = process_task_attention(db, t)
         if result and result["sla_status"] in ["at_risk", "overdue", "stalled"]:
             attention_tasks.append(result)
@@ -49,7 +72,7 @@ def get_tasks_attention(db: Session = Depends(get_db)):
     return attention_tasks
 
 @router.get("/{task_id}", response_model=TaskResponse)
-def get_task(task_id: int, db: Session = Depends(get_db)):
+def get_task(task_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_staff)):
     task = db.query(Task).options(
         joinedload(Task.assignments).joinedload(Assignment.staff).joinedload(Staff.user),
         joinedload(Task.completion_proofs),
@@ -57,6 +80,8 @@ def get_task(task_id: int, db: Session = Depends(get_db)):
     ).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+        
+    verify_task_access(task, current_user)
         
     if task.status in ["assigned", "in_progress"]:
         result = process_task_attention(db, task)
@@ -78,7 +103,7 @@ VALID_TRANSITIONS = {
 }
 
 @router.patch("/{task_id}/status", response_model=TaskResponse)
-def update_task_status(task_id: int, status_update: TaskStatusUpdate, db: Session = Depends(get_db)):
+def update_task_status(task_id: int, status_update: TaskStatusUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_staff)):
     task = db.query(Task).options(
         joinedload(Task.assignments),
         joinedload(Task.completion_proofs),
@@ -87,6 +112,8 @@ def update_task_status(task_id: int, status_update: TaskStatusUpdate, db: Sessio
     
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+        
+    verify_task_access(task, current_user)
         
     old_status = task.status.lower()
     new_status = status_update.status.lower()
@@ -99,6 +126,9 @@ def update_task_status(task_id: int, status_update: TaskStatusUpdate, db: Sessio
         
     if new_status == "verified" and not task.completion_proofs:
         raise HTTPException(status_code=400, detail="Cannot verify task without completion proof")
+        
+    if new_status == "verified" and current_user.role == "Staff":
+        raise HTTPException(status_code=403, detail="Staff cannot verify their own tasks")
         
     # Valid transition
     task.status = new_status
@@ -143,13 +173,15 @@ def update_task_status(task_id: int, status_update: TaskStatusUpdate, db: Sessio
     db.commit()
     db.refresh(task)
     
-    return get_task(task_id, db)
+    return get_task(task_id, db, current_user)
 
 @router.post("/{task_id}/completion-proof", response_model=TaskResponse)
-def upload_completion_proof(task_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
+def upload_completion_proof(task_id: int, file: UploadFile = File(...), db: Session = Depends(get_db), current_user: User = Depends(require_staff)):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+        
+    verify_task_access(task, current_user)
         
     if task.status.lower() != "in_progress":
         raise HTTPException(status_code=400, detail="Task must be in progress to upload proof")
@@ -171,7 +203,7 @@ def upload_completion_proof(task_id: int, file: UploadFile = File(...), db: Sess
     db.add(proof)
     db.commit()
     
-    return get_task(task_id, db)
+    return get_task(task_id, db, current_user)
 
 
 # ── Reassignment endpoints ─────────────────────────────────────────────────
@@ -184,7 +216,7 @@ class ReassignRequest(PydanticBase):
     reason: str = "Manager-initiated reassignment"
 
 @router.get("/{task_id}/reassignment-candidates")
-def get_candidates(task_id: int, db: Session = Depends(get_db)):
+def get_candidates(task_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Return ranked eligible staff for reassignment, excluding the current assignee.
     Uses identical scoring weights/filters as initial assignment.
@@ -219,7 +251,7 @@ def get_candidates(task_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{task_id}/reassign")
-def reassign_task(task_id: int, body: ReassignRequest, db: Session = Depends(get_db)):
+def reassign_task(task_id: int, body: ReassignRequest, db: Session = Depends(get_db), current_user: User = Depends(require_team_head)):
     """
     Manager-initiated reassignment. Validates eligibility, creates a new
     Assignment row, resets SLA clock, and writes a TASK_REASSIGNED audit entry.
@@ -232,18 +264,20 @@ def reassign_task(task_id: int, body: ReassignRequest, db: Session = Depends(get
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    if task.status not in ["assigned", "in_progress"]:
+    if task.status not in ["created", "assigned", "in_progress"]:
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot reassign a task with status '{task.status}'. "
-                   f"Only 'assigned' or 'in_progress' tasks can be reassigned."
+            detail=f"Cannot assign a task with status '{task.status}'. "
+                   f"Only 'created', 'assigned' or 'in_progress' tasks can be assigned."
         )
 
     try:
         perform_reassignment(task, body.new_staff_id, db, manager_reason=body.reason)
+        if task.status == "created":
+            task.status = "assigned"
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
     db.commit()
-    return get_task(task_id, db)
+    return get_task(task_id, db, current_user)
 

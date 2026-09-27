@@ -151,6 +151,7 @@ function TasksPage() {
   const [tasks,   setTasks]   = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState<string | null>(null)
+  const [filterStatus, setFilterStatus] = useState<'all' | 'in_progress' | 'completed'>('all')
 
   const loadTasks = useCallback(async () => {
     try {
@@ -168,6 +169,13 @@ function TasksPage() {
   useEffect(() => {
     loadTasks()
   }, [loadTasks])
+
+  const filteredTasks = tasks.filter(t => {
+    if (filterStatus === 'all') return true
+    if (filterStatus === 'in_progress') return t.status === 'In Progress' || t.status === 'Assigned'
+    if (filterStatus === 'completed') return t.status === 'Completed' || t.status === 'Verified' || t.status === 'Closed'
+    return true
+  })
 
   return (
     <div className="p-6 space-y-6 min-h-screen">
@@ -194,6 +202,31 @@ function TasksPage() {
               <button onClick={loadTasks} className="underline">Retry</button>
             </div>
           )}
+
+          <div className="flex flex-wrap gap-2 mb-4">
+            <Button
+              variant={filterStatus === 'all' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilterStatus('all')}
+            >
+              All Tasks ({tasks.length})
+            </Button>
+            <Button
+              variant={filterStatus === 'in_progress' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilterStatus('in_progress')}
+            >
+              Active / In Progress ({tasks.filter(t => t.status === 'In Progress' || t.status === 'Assigned').length})
+            </Button>
+            <Button
+              variant={filterStatus === 'completed' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilterStatus('completed')}
+            >
+              Completed ({tasks.filter(t => t.status === 'Completed' || t.status === 'Verified' || t.status === 'Closed').length})
+            </Button>
+          </div>
+
           <div className="rounded-md border overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -214,14 +247,14 @@ function TasksPage() {
                       Loading tasks…
                     </td>
                   </tr>
-                ) : tasks.length === 0 ? (
+                ) : filteredTasks.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="p-6 text-center text-muted-foreground">
-                      No tasks yet.
+                      No tasks found for this filter.
                     </td>
                   </tr>
                 ) : (
-                  tasks.map(task => (
+                  filteredTasks.map(task => (
                     <tr key={task.id} className="border-b last:border-0 hover:bg-muted/30">
                       <td className="p-3 font-medium">{task.id}</td>
                       <td className="p-3">

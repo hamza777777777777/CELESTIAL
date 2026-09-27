@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends
+from backend.auth import require_manager, require_team_head, require_staff, require_guest
+
 from sqlalchemy.orm import Session
 from datetime import datetime
 
@@ -7,7 +9,7 @@ from backend.models import Task, Staff, Room, AuditLog, Assignment
 from backend.schemas.intelligence import RecommendationResponse
 from backend.services.intelligence_service import get_next_best_action
 
-router = APIRouter(prefix="/api/intelligence", tags=["intelligence"])
+router = APIRouter(dependencies=[Depends(require_manager)], prefix="/api/intelligence", tags=["intelligence"])
 
 @router.get("/next-action", response_model=RecommendationResponse)
 def get_next_action(db: Session = Depends(get_db)):

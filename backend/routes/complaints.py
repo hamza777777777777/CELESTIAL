@@ -121,7 +121,16 @@ def create_complaint(
         skill_record = db.query(Skill).filter(Skill.name == clf.required_skill).first()
         required_skill_id = skill_record.id if skill_record else None
 
-        # ── 4. Create Task ───────────────────────────────────────────────────
+        # ── 4. Run assignment engine ─────────────────────────────────────────
+        assignment_result = find_best_staff(clf, db)
+
+        if not assignment_result:
+            raise HTTPException(
+                status_code=409,
+                detail="No eligible staff member is currently available for this complaint."
+            )
+
+        # ── 5. Create Task ───────────────────────────────────────────────────
         task = Task(
             complaint_id=db_complaint.id,
             issue_type=clf.issue_type,
@@ -129,82 +138,53 @@ def create_complaint(
             priority=clf.priority,
             location=clf.location or f"Room {complaint.room_number}",
             required_skill_id=required_skill_id,
-            status="created",
+            status="assigned",
         )
         db.add(task)
         db.commit()
         db.refresh(task)
 
-        # Status history: None → created
+        # Status history: None → created, created → assigned
         db.add(TaskStatusHistory(
             task_id=task.id,
             old_status=None,
             new_status="created",
         ))
+        db.add(TaskStatusHistory(
+            task_id=task.id,
+            old_status="created",
+            new_status="assigned",
+        ))
+
+        # Create assignment record
+        db_assignment = Assignment(
+            task_id=task.id,
+            staff_id=assignment_result.staff_id,
+            score=assignment_result.score,
+            score_breakdown=assignment_result.score_breakdown,
+        )
+        db.add(db_assignment)
+
+        # Guest Notification
+        db.add(Notification(
+            guest_id=complaint.guest_id,
+            message="Your request has been accepted and assigned to our team.",
+            related_request_id=db_complaint.id
+        ))
         db.commit()
+        db.refresh(db_assignment)
 
         task_id = task.id
         task_status = task.status
 
-        # ── 5. Run assignment engine ─────────────────────────────────────────
-        assignment_result = find_best_staff(clf, db)
-
-        if assignment_result:
-            # Create assignment record
-            db_assignment = Assignment(
-                task_id=task.id,
-                staff_id=assignment_result.staff_id,
-                score=assignment_result.score,
-                score_breakdown=assignment_result.score_breakdown,
-            )
-            db.add(db_assignment)
-
-            # Update task status → assigned
-            task.status = "assigned"
-            db.commit()
-            db.refresh(db_assignment)
-            db.refresh(task)
-
-            # Status history: created → assigned
-            db.add(TaskStatusHistory(
-                task_id=task.id,
-                old_status="created",
-                new_status="assigned",
-            ))
-            
-            # Guest Notification
-            db.add(Notification(
-                guest_id=complaint.guest_id,
-                message="Your request has been accepted and assigned to our team.",
-                related_request_id=db_complaint.id
-            ))
-            
-            db.commit()
-
-            task_status = task.status
-
-            assignment_info = AssignmentInfo(
-                assignment_id=db_assignment.id,
-                staff_id=assignment_result.staff_id,
-                staff_name=assignment_result.staff_name,
-                score=assignment_result.score,
-                score_breakdown=assignment_result.score_breakdown,
-                reasoning=assignment_result.reasoning,
-            )
-        else:
-            # No eligible staff — task stays "created", assignment remains null
-            assignment_info = AssignmentInfo(
-                assignment_id=None,
-                staff_id=None,
-                staff_name=None,
-                score=None,
-                score_breakdown=None,
-                reasoning=(
-                    f"No eligible staff found for department='{clf.department}', "
-                    f"skill='{clf.required_skill}'. "
-                    "Task is pending manual assignment."
-                ),
-            )
+        assignment_info = AssignmentInfo(
+            assignment_id=db_assignment.id,
+            staff_id=assignment_result.staff_id,
+            staff_name=assignment_result.staff_name,
+            score=assignment_result.score,
+            score_breakdown=assignment_result.score_breakdown,
+            reasoning=assignment_result.reasoning,
+        )
 
         # ── 6. Audit log ─────────────────────────────────────────────────────
         db.add(AuditLog(
@@ -247,6 +227,9 @@ def create_complaint(
             ))
         db.commit()
 
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception as exc:
         # If anything in the operational pipeline fails, the complaint is
         # still safely stored. We log the error and return a partial response.

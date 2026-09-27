@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, Query
+from backend.auth import require_manager, require_team_head, require_staff, require_guest
+
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -6,7 +8,7 @@ from backend.database import get_db
 from backend.models.audit_log import AuditLog
 from backend.schemas.audit import AuditLogResponse
 
-router = APIRouter(prefix="/api/audit", tags=["audit"])
+router = APIRouter(dependencies=[Depends(require_manager)], prefix="/api/audit", tags=["audit"])
 
 @router.get("", response_model=List[AuditLogResponse])
 def get_audit_logs(

@@ -12,7 +12,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { format } from 'date-fns'
 import {
   AlertTriangle, BrainCircuit, Activity, Users, BedDouble,
-  RefreshCw, Info, CheckCircle2, Clock, UserCircle2,
+  RefreshCw, Info, CheckCircle2, UserCircle2,
   LineChart, ArrowRight, Sparkles, TrendingUp, CalendarDays, CalendarIcon
 } from 'lucide-react'
 import {
@@ -94,6 +94,8 @@ function Resort360Page() {
   const [error,   setError]   = useState<string | null>(null)
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
   const [viewDate, setViewDate] = useState<Date>(new Date())
+  const [operationsTab, setOperationsTab] = useState<'active' | 'all'>('active')
+  const [staffTab, setStaffTab] = useState<'all' | 'unassigned' | 'busy'>('all')
 
   // Reassign modal state
   const [reassignTask, setReassignTask] = useState<TaskResponse | null>(null)
@@ -110,12 +112,30 @@ function Resort360Page() {
       setLoading(true)
       setError(null)
       const [statsData, staffData, roomsData, tasksData, attentionTasksData, nextActionData, systemicIssuesData, forecastData] = await Promise.all([
-        api.getStats(),
-        api.getStaff(),
-        api.getRooms(format(viewDate, 'yyyy-MM-dd')),
-        api.getTasks(),
-        api.getAttentionTasks(),
-        api.getNextAction(),
+        api.getStats().catch(e => {
+          console.warn("Stats load error:", e);
+          return null as any;
+        }),
+        api.getStaff().catch(e => {
+          console.warn("Staff load error:", e);
+          return [];
+        }),
+        api.getRooms(format(viewDate, 'yyyy-MM-dd')).catch(e => {
+          console.warn("Rooms load error:", e);
+          return [];
+        }),
+        api.getTasks().catch(e => {
+          console.warn("Tasks load error:", e);
+          return [];
+        }),
+        api.getAttentionTasks().catch(e => {
+          console.warn("Attention tasks load error:", e);
+          return [];
+        }),
+        api.getNextAction().catch(e => {
+          console.warn("Next action load error:", e);
+          return null as any;
+        }),
         api.getSystemicIssues().catch(e => {
           console.error("Systemic issues load error:", e);
           return { issues: [] };
@@ -169,7 +189,6 @@ function Resort360Page() {
     })
     .slice(0, 8)
 
-  const unassignedTasks = tasks.filter(t => t.status === 'created')
   const highPriorityTasks = tasks.filter(
     t => ['high', 'High', 'critical', 'Critical'].includes(t.priority ?? '') && t.status !== 'closed'
   )
@@ -177,12 +196,6 @@ function Resort360Page() {
   // ── Intelligence alerts (rule-based, not LLM) ───────────────────────────
   const alerts: { level: 'warning' | 'info' | 'error'; message: string }[] = []
 
-  if (unassignedTasks.length > 0) {
-    alerts.push({
-      level: 'error',
-      message: `Action required: ${unassignedTasks.length} task(s) have no assigned staff.`,
-    })
-  }
   if (highPriorityTasks.length > 0) {
     alerts.push({
       level: 'warning',
@@ -259,12 +272,16 @@ function Resort360Page() {
     try {
       await api.reassignTask(reassignTask.id!, selectedStaffId)
       const newStaff = candidates.find(c => c.staff_id === selectedStaffId)
-      setReassignSuccess(`Task reassigned to ${newStaff?.staff_name ?? 'new staff member'} successfully.`)
-      // Refresh attention list
-      const fresh = await api.getAttentionTasks()
-      setAttentionTasks(fresh)
+      const isInitialAssign = reassignTask.status === 'created' || !reassignTask.staff_name
+      setReassignSuccess(
+        isInitialAssign
+          ? `Task assigned to ${newStaff?.staff_name ?? 'staff member'} successfully.`
+          : `Task reassigned to ${newStaff?.staff_name ?? 'new staff member'} successfully.`
+      )
+      // Refresh all resort data
+      await loadAll()
     } catch (e: any) {
-      setReassignError(e.message || 'Reassignment failed')
+      setReassignError(e.message || 'Assignment failed')
     } finally {
       setReassigning(false)
     }
@@ -281,10 +298,14 @@ function Resort360Page() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Users className="h-5 w-5 text-indigo-600" />
-              Reassign Task: {reassignTask?.location} — {reassignTask?.issue_type}
+              {reassignTask?.status === 'created' || !reassignTask?.staff_name
+                ? `Assign Task: Room ${reassignTask?.location ?? 'N/A'} — ${reassignTask?.issue_type ?? 'Issue'}`
+                : `Reassign Task: Room ${reassignTask?.location ?? 'N/A'} — ${reassignTask?.issue_type ?? 'Issue'}`}
             </DialogTitle>
             <DialogDescription>
-              Select a qualified staff member. Current assignee: <strong>{reassignTask?.staff_name ?? 'Unknown'}</strong>
+              {reassignTask?.status === 'created' || !reassignTask?.staff_name
+                ? 'Select a qualified available staff member to assign this task.'
+                : <>Select a qualified staff member. Current assignee: <strong>{reassignTask?.staff_name ?? 'Unknown'}</strong></>}
               {reassignTask?.reason && (
                 <span className="block mt-1 text-xs text-orange-700 bg-orange-50 p-2 rounded border border-orange-100">
                   <strong>SLA Status:</strong> {reassignTask.sla_status?.toUpperCase()} — {reassignTask.reason}
@@ -365,7 +386,11 @@ function Resort360Page() {
                     onClick={confirmReassign}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white"
                   >
-                    {reassigning ? 'Reassigning…' : 'Confirm Reassignment'}
+                    {reassigning
+                      ? 'Assigning…'
+                      : (reassignTask?.status === 'created' || !reassignTask?.staff_name)
+                        ? 'Assign Staff Member'
+                        : 'Confirm Reassignment'}
                   </Button>
                 </div>
               </>
@@ -424,11 +449,11 @@ function Resort360Page() {
           sub="active high-priority tasks"
         />
         <KpiTile
-          label="Unassigned Tasks"
-          value={stats?.assignments.unassigned ?? '—'}
-          icon={<Clock className="h-4 w-4" />}
-          color={stats && stats.assignments.unassigned > 0 ? 'text-orange-600' : ''}
-          sub="awaiting staff assignment"
+          label="Staff Available"
+          value={staff.filter(s => s.available).length}
+          icon={<Users className="h-4 w-4" />}
+          color="text-emerald-600"
+          sub="ready for task assignment"
         />
         <KpiTile
           label="Occupancy"
@@ -769,26 +794,114 @@ function Resort360Page() {
             </CardContent>
           </Card>
 
-          {/* Live Operations */}
+          {/* Live Operations & Task Assignment Queue */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="h-5 w-5 text-muted-foreground" />
-                Live Operations
-              </CardTitle>
-              <CardDescription>Active tasks sorted by priority</CardDescription>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-muted-foreground" />
+                    Live Operations & Task Assignment
+                  </CardTitle>
+                  <CardDescription>
+                    {operationsTab === 'active'
+                      ? `${activeTasks.length} active task(s) in progress`
+                      : `${tasks.length} total tasks`}
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-1 bg-muted p-1 rounded-md">
+                  <Button
+                    variant={operationsTab === 'active' ? 'default' : 'ghost'}
+                    size="sm"
+                    className="h-7 text-xs font-medium"
+                    onClick={() => setOperationsTab('active')}
+                  >
+                    Active ({activeTasks.length})
+                  </Button>
+                  <Button
+                    variant={operationsTab === 'all' ? 'default' : 'ghost'}
+                    size="sm"
+                    className="h-7 text-xs font-medium"
+                    onClick={() => setOperationsTab('all')}
+                  >
+                    All ({tasks.length})
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              {activeTasks.length === 0 ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground py-4 justify-center">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  All tasks are closed or verified. Nothing active.
-                </div>
+              {operationsTab === 'active' ? (
+                activeTasks.length === 0 ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-4 justify-center">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    All tasks are closed or verified. Nothing active.
+                  </div>
+                ) : (
+                  <div className="rounded-md border overflow-x-auto max-h-[380px] overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead className="sticky top-0 bg-muted/90 backdrop-blur z-10">
+                        <tr className="border-b">
+                          <th className="p-2.5 text-left font-medium">ID</th>
+                          <th className="p-2.5 text-left font-medium">Issue / Location</th>
+                          <th className="p-2.5 text-left font-medium">Priority</th>
+                          <th className="p-2.5 text-left font-medium">Status</th>
+                          <th className="p-2.5 text-left font-medium">Assigned To</th>
+                          <th className="p-2.5 text-right font-medium">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activeTasks.map(task => {
+                          const latestAssignment = task.assignments?.length
+                            ? task.assignments[task.assignments.length - 1]
+                            : null
+                          return (
+                            <tr key={task.id} className="border-b last:border-0 hover:bg-muted/30">
+                              <td className="p-2.5 font-medium text-xs text-muted-foreground">TSK-{task.id}</td>
+                              <td className="p-2.5">
+                                <div className="font-medium">
+                                  {task.issue_type ?? 'Issue'} — Room {task.location ?? 'N/A'}
+                                </div>
+                                <div className="text-xs text-muted-foreground">{task.department ?? ''}</div>
+                              </td>
+                              <td className="p-2.5">
+                                <Badge className={PRIORITY_COLORS[task.priority ?? 'low'] ?? 'bg-slate-100'}>
+                                  {task.priority ?? 'N/A'}
+                                </Badge>
+                              </td>
+                              <td className="p-2.5">
+                                <Badge className={TASK_STATUS_COLORS[task.status] ?? ''}>
+                                  {task.status.replace('_', ' ')}
+                                </Badge>
+                              </td>
+                              <td className="p-2.5">
+                                <div className="flex items-center gap-1">
+                                  <UserCircle2 className="h-3.5 w-3.5 text-muted-foreground" />
+                                  <span>{latestAssignment?.staff_name ?? 'Unassigned'}</span>
+                                </div>
+                              </td>
+                              <td className="p-2.5 text-right">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 text-xs text-indigo-700 hover:bg-indigo-50"
+                                  onClick={() => openReassignModal(task)}
+                                >
+                                  Reassign
+                                </Button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )
               ) : (
-                <div className="rounded-md border overflow-x-auto">
+                /* All Tasks */
+                <div className="rounded-md border overflow-x-auto max-h-[380px] overflow-y-auto">
                   <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b bg-muted/50">
+                    <thead className="sticky top-0 bg-muted/90 backdrop-blur z-10">
+                      <tr className="border-b">
                         <th className="p-2.5 text-left font-medium">ID</th>
                         <th className="p-2.5 text-left font-medium">Issue / Location</th>
                         <th className="p-2.5 text-left font-medium">Priority</th>
@@ -797,7 +910,7 @@ function Resort360Page() {
                       </tr>
                     </thead>
                     <tbody>
-                      {activeTasks.map(task => {
+                      {tasks.slice(0, 20).map(task => {
                         const latestAssignment = task.assignments?.length
                           ? task.assignments[task.assignments.length - 1]
                           : null
@@ -806,9 +919,8 @@ function Resort360Page() {
                             <td className="p-2.5 font-medium text-xs text-muted-foreground">TSK-{task.id}</td>
                             <td className="p-2.5">
                               <div className="font-medium">
-                                {task.issue_type ?? 'Issue'} — {task.location ?? 'N/A'}
+                                {task.issue_type ?? 'Issue'} — Room {task.location ?? 'N/A'}
                               </div>
-                              <div className="text-xs text-muted-foreground">{task.department ?? ''}</div>
                             </td>
                             <td className="p-2.5">
                               <Badge className={PRIORITY_COLORS[task.priority ?? 'low'] ?? 'bg-slate-100'}>
@@ -833,7 +945,8 @@ function Resort360Page() {
                   </table>
                 </div>
               )}
-              <div className="mt-3 flex justify-end">
+              <div className="mt-3 flex justify-between items-center text-xs text-muted-foreground">
+                <span>Showing top items. Full operational queue available in Tasks.</span>
                 <Link to="/tasks">
                   <Button variant="outline" size="sm" className="flex items-center gap-1">
                     View All Tasks <ArrowRight className="h-3 w-3" />
@@ -893,44 +1006,80 @@ function Resort360Page() {
           {/* Staff Snapshot */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-muted-foreground" />
-                Staff Snapshot
-              </CardTitle>
-              <CardDescription>
-                Live availability from database
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-muted-foreground" />
+                    Staff Snapshot
+                  </CardTitle>
+                  <CardDescription>
+                    Live availability from database
+                  </CardDescription>
+                </div>
+              </div>
+              <div className="flex gap-1 pt-2">
+                <Button
+                  variant={staffTab === 'all' ? 'default' : 'outline'}
+                  size="sm"
+                  className="h-6 text-[11px] px-2"
+                  onClick={() => setStaffTab('all')}
+                >
+                  All ({staff.length})
+                </Button>
+                <Button
+                  variant={staffTab === 'unassigned' ? 'default' : 'outline'}
+                  size="sm"
+                  className={`h-6 text-[11px] px-2 ${staffTab === 'unassigned' ? 'bg-emerald-600 hover:bg-emerald-700 text-white font-medium' : 'text-emerald-700 border-emerald-200'}`}
+                  onClick={() => setStaffTab('unassigned')}
+                >
+                  0 Tasks ({staff.filter(s => s.active_task_count === 0).length})
+                </Button>
+                <Button
+                  variant={staffTab === 'busy' ? 'default' : 'outline'}
+                  size="sm"
+                  className={`h-6 text-[11px] px-2 ${staffTab === 'busy' ? 'bg-orange-600 hover:bg-orange-700 text-white font-medium' : 'text-orange-700 border-orange-200'}`}
+                  onClick={() => setStaffTab('busy')}
+                >
+                  Busy ({staff.filter(s => s.active_task_count > 0).length})
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-3">
               {staff.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No staff data.</p>
               ) : (
-                staff.map(s => (
-                  <div key={s.id} className="flex items-center justify-between py-1.5 border-b last:border-0">
-                    <div className="flex items-center gap-2">
-                      <div className={`h-2 w-2 rounded-full flex-shrink-0 ${s.available ? 'bg-green-500' : 'bg-orange-400'}`} />
-                      <div>
-                        <div className="text-sm font-medium leading-tight">{s.name}</div>
-                        <div className="text-xs text-muted-foreground">{s.department}</div>
-                      </div>
-                    </div>
-                    <div className="text-right flex-shrink-0 ml-2">
-                      <Badge
-                        variant="outline"
-                        className={s.available
-                          ? 'bg-green-50 text-green-700 border-green-200 text-xs'
-                          : 'bg-orange-50 text-orange-700 border-orange-200 text-xs'}
-                      >
-                        {s.available ? 'Available' : 'Busy'}
-                      </Badge>
-                      {s.active_task_count > 0 && (
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                          {s.active_task_count} task{s.active_task_count > 1 ? 's' : ''}
+                <div className="max-h-[380px] overflow-y-auto space-y-1 pr-1">
+                  {staff
+                    .filter(s => staffTab === 'all' ? true : staffTab === 'unassigned' ? s.active_task_count === 0 : s.active_task_count > 0)
+                    .map(s => (
+                      <div key={s.id} className="flex items-center justify-between py-1.5 border-b last:border-0">
+                        <div className="flex items-center gap-2">
+                          <div className={`h-2 w-2 rounded-full flex-shrink-0 ${s.available ? 'bg-green-500' : 'bg-orange-400'}`} />
+                          <div>
+                            <div className="text-sm font-medium leading-tight">{s.name}</div>
+                            <div className="text-xs text-muted-foreground">{s.department}</div>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                ))
+                        <div className="text-right flex-shrink-0 ml-2">
+                          <Badge
+                            variant="outline"
+                            className={s.available
+                              ? 'bg-green-50 text-green-700 border-green-200 text-xs'
+                              : 'bg-orange-50 text-orange-700 border-orange-200 text-xs'}
+                          >
+                            {s.available ? 'Available' : 'Busy'}
+                          </Badge>
+                          <div className="text-xs mt-0.5">
+                            {s.active_task_count > 0 ? (
+                              <span className="text-muted-foreground">{s.active_task_count} task{s.active_task_count > 1 ? 's' : ''}</span>
+                            ) : (
+                              <span className="text-emerald-600 font-medium">0 tasks assigned</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
               )}
               <div className="mt-2 pt-2 border-t flex justify-between text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">

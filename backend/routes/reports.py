@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, Response
+from backend.auth import require_manager, require_team_head, require_staff, require_guest
+
 from sqlalchemy.orm import Session, joinedload
 from backend.database import get_db
 from backend.models import Task, Assignment, Staff
 import csv
 from io import StringIO
 
-router = APIRouter(prefix="/api/reports", tags=["reports"])
+router = APIRouter(dependencies=[Depends(require_manager)], prefix="/api/reports", tags=["reports"])
 
 @router.get("/operations")
 def download_operations_report(db: Session = Depends(get_db)):

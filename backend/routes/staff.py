@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
+from backend.auth import require_manager, require_team_head, require_staff, require_guest
+
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 from typing import List
@@ -7,7 +9,7 @@ from backend.database import get_db
 from backend.models import Staff, Task, Assignment, AuditLog
 from backend.schemas.staff import StaffResponse
 
-router = APIRouter(prefix="/api/staff", tags=["staff"])
+router = APIRouter(dependencies=[Depends(require_staff)], prefix="/api/staff", tags=["staff"])
 
 class AvailabilityUpdateRequest(BaseModel):
     available: bool
@@ -47,7 +49,7 @@ def get_staff(db: Session = Depends(get_db)):
 
     return results
 
-@router.patch("/{staff_id}/availability", response_model=StaffResponse)
+@router.patch("/{staff_id}/availability", response_model=StaffResponse, dependencies=[Depends(require_team_head)])
 def update_staff_availability(
     staff_id: int, 
     request: AvailabilityUpdateRequest, 

@@ -4,9 +4,24 @@ from fastapi.testclient import TestClient
 
 from backend.main import app
 from backend.models.audit_log import AuditLog
+from backend.auth import get_token_verifier
+from fastapi import HTTPException, status
 # test_db fixture is provided by conftest.py (isolated in-memory SQLite)
 
 client = TestClient(app)
+
+def mock_firebase_verifier(token: str) -> str:
+    if not token or not token.startswith("test-"):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    return "test-manager-uid"
+
+@pytest.fixture(scope="module", autouse=True)
+def setup_auth_module():
+    app.dependency_overrides[get_token_verifier] = lambda: mock_firebase_verifier
+    yield
+    app.dependency_overrides.pop(get_token_verifier, None)
+
+AUTH_HEADER = {"Authorization": "Bearer test-manager-uid"}
 
 # test_db fixture is inherited from conftest.py — do NOT redefine it here
 
@@ -24,7 +39,7 @@ def seed_audits(db, count=5):
 
 # ── Test 1: Empty audit log returns clean empty list
 def test_empty_audit_log(test_db):
-    res = client.get("/api/audit")
+    res = client.get("/api/audit", headers=AUTH_HEADER)
     assert res.status_code == 200
     assert res.json() == []
 
@@ -32,7 +47,7 @@ def test_empty_audit_log(test_db):
 # ── Test 2: Existing audit records are returned
 def test_existing_records(test_db):
     seed_audits(test_db, 3)
-    res = client.get("/api/audit")
+    res = client.get("/api/audit", headers=AUTH_HEADER)
     assert res.status_code == 200
     data = res.json()
     assert len(data) == 3
@@ -41,7 +56,7 @@ def test_existing_records(test_db):
 # ── Test 3: Newest records appear first
 def test_ordering(test_db):
     seed_audits(test_db, 3)
-    res = client.get("/api/audit")
+    res = client.get("/api/audit", headers=AUTH_HEADER)
     assert res.status_code == 200
     data = res.json()
     # Seed inserts 0, 1, 2 sequentially. So 2 is newest.
@@ -52,7 +67,7 @@ def test_ordering(test_db):
 # ── Test 4: Limit works
 def test_limit(test_db):
     seed_audits(test_db, 5)
-    res = client.get("/api/audit?limit=2")
+    res = client.get("/api/audit?limit=2", headers=AUTH_HEADER)
     assert res.status_code == 200
     assert len(res.json()) == 2
 
@@ -60,7 +75,7 @@ def test_limit(test_db):
 # ── Test 5: Maximum limit protection
 def test_max_limit_protection(test_db):
     # Trying to pass limit > 100 should return 422 Validation Error
-    res = client.get("/api/audit?limit=105")
+    res = client.get("/api/audit?limit=105", headers=AUTH_HEADER)
     assert res.status_code == 422
 
 
@@ -74,7 +89,7 @@ def test_real_event_types(test_db):
     ))
     test_db.commit()
     
-    res = client.get("/api/audit")
+    res = client.get("/api/audit", headers=AUTH_HEADER)
     assert res.status_code == 200
     data = res.json()
     assert data[0]["action"] == "COMPLAINT_CLASSIFIED"
@@ -85,10 +100,10 @@ def test_real_event_types(test_db):
 
 # ── Test 7: No mutation
 def test_no_mutation(test_db):
-    res1 = client.get("/api/audit")
+    res1 = client.get("/api/audit", headers=AUTH_HEADER)
     assert res1.json() == []
     
-    res2 = client.get("/api/audit")
+    res2 = client.get("/api/audit", headers=AUTH_HEADER)
     assert res2.json() == []
 
 # ── Test 8: Complaint submission with "en" succeeds
@@ -117,7 +132,7 @@ def test_verification_rules(test_db):
     test_db.refresh(task)
     
     # Cannot verify without proof
-    res = client.patch(f"/api/tasks/{task.id}/status", json={"status": "verified"})
+    res = client.patch(f"/api/tasks/{task.id}/status", json={"status": "verified"}, headers=AUTH_HEADER)
     assert res.status_code == 400
     
     # Add proof
@@ -125,12 +140,12 @@ def test_verification_rules(test_db):
     test_db.commit()
     
     # Can verify with proof
-    res = client.patch(f"/api/tasks/{task.id}/status", json={"status": "verified"})
+    res = client.patch(f"/api/tasks/{task.id}/status", json={"status": "verified"}, headers=AUTH_HEADER)
     assert res.status_code == 200
 
 # ── Test 10: Report Download
 def test_report_download(test_db):
-    res = client.get("/api/reports/operations")
+    res = client.get("/api/reports/operations", headers=AUTH_HEADER)
     assert res.status_code == 200
     assert "text/csv" in res.headers["content-type"]
     assert "Task ID" in res.text

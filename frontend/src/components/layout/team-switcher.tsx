@@ -1,4 +1,9 @@
-import { ChevronsUpDown, UserCircle2 } from 'lucide-react'
+import { UserCircle2, ChevronsUpDown, Check } from 'lucide-react'
+import {
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from '@/components/ui/sidebar'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,19 +12,34 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar,
-} from '@/components/ui/sidebar'
+import { AuthService, type AuthUser } from '@/lib/auth'
 import { useRoleStore, type Role } from '@/stores/role-store'
+import { useNavigate } from '@tanstack/react-router'
+import { getDefaultRouteForRole } from '@/config/role-permissions'
+
+const DUMMY_ROLES: { role: Role; label: string; email: string; uid: string; icon: string }[] = [
+  { role: 'Manager', label: 'Manager', email: 'manager@smartresort.com', uid: 'dummy-manager-uid', icon: '👑' },
+  { role: 'Team Head', label: 'Team Head', email: 'head@smartresort.com', uid: 'dummy-teamhead-uid', icon: '🛡️' },
+  { role: 'Staff', label: 'Staff', email: 'staff@smartresort.com', uid: 'dummy-staff-uid', icon: '👷' },
+  { role: 'Guest', label: 'Guest', email: 'guest@smartresort.com', uid: 'dummy-guest-uid', icon: '🛎️' },
+]
 
 export function TeamSwitcher() {
-  const { isMobile } = useSidebar()
   const { currentRole, setRole } = useRoleStore()
-  
-  const roles: Role[] = ['Guest', 'Staff', 'Team Head', 'Manager']
+  const navigate = useNavigate()
+
+  const handleSwitch = (d: typeof DUMMY_ROLES[0]) => {
+    const user: AuthUser = {
+      uid: d.uid,
+      email: d.email,
+      displayName: `${d.label} User`,
+      role: d.role,
+    }
+    AuthService.persistSession(user, d.uid)
+    setRole(d.role)
+    const nextRoute = getDefaultRouteForRole(d.role)
+    navigate({ to: nextRoute as any })
+  }
 
   return (
     <SidebarMenu>
@@ -28,42 +48,41 @@ export function TeamSwitcher() {
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size='lg'
-              className='data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground'
+              className='data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground cursor-pointer hover:bg-sidebar-accent/50 transition-colors'
             >
               <div className='flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground'>
                 <UserCircle2 className='size-4' />
               </div>
               <div className='grid flex-1 text-start text-sm leading-tight'>
-                <span className='truncate font-semibold'>
-                  Smart Resort 360
+                <span className='truncate font-semibold'>Smart Resort 360</span>
+                <span className='truncate text-xs font-medium text-muted-foreground flex items-center gap-1'>
+                  Role: <span className='text-primary font-bold'>{currentRole}</span>
                 </span>
-                <span className='truncate text-xs'>View as: {currentRole}</span>
               </div>
-              <ChevronsUpDown className='ms-auto' />
+              <ChevronsUpDown className='ml-auto size-4 shrink-0 opacity-50' />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
-          <DropdownMenuContent
-            className='w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg'
-            align='start'
-            side={isMobile ? 'bottom' : 'right'}
-            sideOffset={4}
-          >
-            <DropdownMenuLabel className='text-xs text-muted-foreground'>
-              Select Role View
+          <DropdownMenuContent className='w-56 rounded-lg' align='start' side='bottom' sideOffset={4}>
+            <DropdownMenuLabel className='text-xs text-muted-foreground font-semibold'>
+              Switch Active Role
             </DropdownMenuLabel>
-            {roles.map((role) => (
+            <DropdownMenuSeparator />
+            {DUMMY_ROLES.map((d) => (
               <DropdownMenuItem
-                key={role}
-                onClick={() => setRole(role)}
-                className='gap-2 p-2 cursor-pointer'
+                key={d.role}
+                onClick={() => handleSwitch(d)}
+                className='flex items-center justify-between cursor-pointer py-2'
               >
-                <div className='flex size-6 items-center justify-center rounded-sm border'>
-                  <UserCircle2 className='size-4 shrink-0' />
+                <div className='flex items-center gap-2'>
+                  <span>{d.icon}</span>
+                  <div className='flex flex-col'>
+                    <span className='text-sm font-medium'>{d.label}</span>
+                    <span className='text-[11px] text-muted-foreground'>{d.email}</span>
+                  </div>
                 </div>
-                {role}
+                {currentRole === d.role && <Check className='size-4 text-primary ml-2' />}
               </DropdownMenuItem>
             ))}
-            <DropdownMenuSeparator />
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>

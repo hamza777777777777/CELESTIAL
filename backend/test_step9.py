@@ -7,7 +7,23 @@ from backend.models.room import Room
 from backend.models.competitor import Competitor
 # test_db fixture is provided by conftest.py (isolated in-memory SQLite)
 
+from backend.auth import get_token_verifier
+from fastapi import HTTPException, status
+
 client = TestClient(app)
+
+def mock_firebase_verifier(token: str) -> str:
+    if not token or not token.startswith("test-"):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    return "test-manager-uid"
+
+@pytest.fixture(scope="module", autouse=True)
+def setup_auth_manager():
+    app.dependency_overrides[get_token_verifier] = lambda: mock_firebase_verifier
+    yield
+    app.dependency_overrides.pop(get_token_verifier, None)
+
+AUTH_HEADER = {"Authorization": "Bearer test-manager-uid"}
 
 # test_db fixture is inherited from conftest.py — do NOT redefine it here
 
@@ -33,7 +49,7 @@ def test_competitor_calculation(test_db):
         {"name": "C", "rate": 5000}
     ])
     
-    res = client.get("/api/pricing/competitive-analysis?room_type=AC Deluxe")
+    res = client.get("/api/pricing/competitive-analysis?room_type=AC Deluxe", headers=AUTH_HEADER)
     assert res.status_code == 200
     data = res.json()
     assert len(data["competitors"]) == 3
@@ -48,7 +64,7 @@ def test_below_market_rate(test_db):
         {"name": "A", "rate": 4500},
         {"name": "B", "rate": 4800}
     ])
-    res = client.get("/api/pricing/competitive-analysis?room_type=AC Deluxe")
+    res = client.get("/api/pricing/competitive-analysis?room_type=AC Deluxe", headers=AUTH_HEADER)
     assert res.status_code == 200
     data = res.json()
     # Below market: 3500 vs avg 4650. Difference is -1150
@@ -63,7 +79,7 @@ def test_near_market_rate(test_db):
         {"name": "A", "rate": 3900},
         {"name": "B", "rate": 4200}
     ])
-    res = client.get("/api/pricing/competitive-analysis?room_type=AC Deluxe")
+    res = client.get("/api/pricing/competitive-analysis?room_type=AC Deluxe", headers=AUTH_HEADER)
     assert res.status_code == 200
     data = res.json()
     assert "hold" in data["recommendation"].lower()
@@ -76,7 +92,7 @@ def test_above_market_rate(test_db):
         {"name": "A", "rate": 3800},
         {"name": "B", "rate": 4200}
     ])
-    res = client.get("/api/pricing/competitive-analysis?room_type=AC Deluxe")
+    res = client.get("/api/pricing/competitive-analysis?room_type=AC Deluxe", headers=AUTH_HEADER)
     assert res.status_code == 200
     data = res.json()
     assert "reviewing" in data["recommendation"].lower()
@@ -88,7 +104,7 @@ def test_above_market_rate(test_db):
 @patch.dict(os.environ, clear=True)
 def test_openai_unavailable(test_db):
     seed_pricing_scenario(test_db, 3500, [{"name": "A", "rate": 4500}])
-    res = client.get("/api/pricing/competitive-analysis?room_type=AC Deluxe")
+    res = client.get("/api/pricing/competitive-analysis?room_type=AC Deluxe", headers=AUTH_HEADER)
     assert res.status_code == 200
     data = res.json()
     assert data["source"] == "rule_based"
@@ -100,7 +116,7 @@ def test_malformed_ai_response(mock_post, test_db):
     mock_post.return_value.status_code = 200
     mock_post.return_value.json.return_value = {"choices": [{"message": {"content": "not json"}}]}
     
-    res = client.get("/api/pricing/competitive-analysis?room_type=AC Deluxe")
+    res = client.get("/api/pricing/competitive-analysis?room_type=AC Deluxe", headers=AUTH_HEADER)
     assert res.status_code == 200
     data = res.json()
     assert data["source"] == "rule_based"
@@ -115,13 +131,13 @@ def test_out_of_bounds_ai_recommendation(mock_post, test_db):
         "choices": [{"message": {"content": '{"recommendation":"hi","reason":"why","recommended_rate_min":5000,"recommended_rate_max":6000}'}}]
     }
     
-    res = client.get("/api/pricing/competitive-analysis?room_type=AC Deluxe")
+    res = client.get("/api/pricing/competitive-analysis?room_type=AC Deluxe", headers=AUTH_HEADER)
     assert res.status_code == 200
     data = res.json()
     assert data["source"] == "rule_based"
     assert data["recommended_rate_max"] == 4200
 
 def test_no_competitor_data(test_db):
-    res = client.get("/api/pricing/competitive-analysis?room_type=AC Deluxe")
+    res = client.get("/api/pricing/competitive-analysis?room_type=AC Deluxe", headers=AUTH_HEADER)
     assert res.status_code == 404
     assert res.json()["detail"] == "No competitor data found."
